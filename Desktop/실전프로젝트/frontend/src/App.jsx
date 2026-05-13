@@ -13,7 +13,7 @@ function App() {
       {/* 헤더 */}
       <header style={{
         display: "flex", alignItems: "center",
-        padding: "0 32px 0 490px", height: 56, borderBottom: "1px solid #e8e8e8",
+        padding: "0 32px 0 490px", height: 72, borderBottom: "1px solid #e8e8e8",
         background: "#fff", position: "sticky", top: 0, zIndex: 100,
         boxSizing: "border-box",
       }}>
@@ -22,16 +22,19 @@ function App() {
           style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }}
           onClick={() => setPage("landing")}
         >
-          <span style={{ fontSize: 38, fontWeight: 900, color: "#1a1a1a", letterSpacing: "-3px", fontFamily: "Georgia, 'Times New Roman',serif"}}>DBR</span>
+          <span style={{ fontSize: 46, fontWeight: 900, color: "#1a1a1a", letterSpacing: "-3px", fontFamily: "Georgia, 'Times New Roman',serif"}}>DBR</span>
           <div style={{ width: 1, height: 28, background: "#e0e0e0" }} />
           <div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#e85a18" }}>Case Atlas</p>
+            <p style={{ fontSize: 20, fontWeight: 600, color: "#E86F00 " }}>Case Atlas</p>
           </div>
         </div>
       </header>
 
       {page === "landing" && (
-        <LandingPage onStart={() => setPage("search")} onAbout={() => setPage("about")} />
+        <LandingPage 
+          onStart={() => { document.body.style.overflow = ""; setPage("search"); }} 
+          onAbout={() => { document.body.style.overflow = ""; setPage("about"); }} 
+        />
       )}
       {page === "about" && (
         <AboutPage onStart={() => setPage("search")} />

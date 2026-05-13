@@ -1,8 +1,9 @@
 import { Search, Map, Bookmark, Files } from "lucide-react";
+import { useState } from "react";
 
-const ORANGE = "#F05A28";
-const ORANGE_LIGHT = "#FEF0EA";
-const ORANGE_BORDER = "#f5c4a8";
+const ORANGE = "#E86F00";
+const ORANGE_LIGHT = "#FEF0E0";
+const ORANGE_BORDER = "#f5b85a";
 
 const styles = {
   page: {
@@ -23,7 +24,7 @@ const styles = {
     borderBottom: "none",
   },
   label: {
-    fontSize: 13,
+    fontSize: 15,
     letterSpacing: "1.5px",
     textTransform: "uppercase",
     color: ORANGE,
@@ -31,7 +32,7 @@ const styles = {
     fontWeight: 500,
   },
   title: {
-    fontSize: 25,
+    fontSize: 28,
     fontWeight: 400,
     color: "#1a1a1a",
     marginBottom: 10,
@@ -39,7 +40,7 @@ const styles = {
     letterSpacing: "-1px",
   },
   desc: {
-    fontSize: 15,
+    fontSize: 16,
     color: "#6b6258",
     lineHeight: 1.75,
     maxWidth: 800,
@@ -70,13 +71,13 @@ const styles = {
     color: ORANGE,
   },
   featTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 600,
     color: "#1a1a1a",
     marginBottom: 5,
   },
   featDesc: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#8a7e74",
     lineHeight: 1.65,
   },
@@ -165,7 +166,7 @@ const styles = {
     letterSpacing: "0.3px",
   },
   tipItem: {
-    fontSize: 13,
+    fontSize: 15,
     color: "#6b6258",
     lineHeight: 1.65,
     marginBottom: 6,
@@ -181,21 +182,22 @@ const styles = {
     borderBottom: "0.5px solid #ede8e2",
   },
   faqItemLast: { padding: "16px 0" },
+  
   faqQ: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 600,
     color: "#1a1a1a",
     marginBottom: 6,
   },
   faqA: {
-    fontSize: 13,
+    fontSize: 15,
     color: "#8a7e74",
     lineHeight: 1.65,
   },
   ctaBox: {
     background: ORANGE_LIGHT,
     border: `0.5px solid ${ORANGE_BORDER}`,
-    borderRadius: 12,
+    borderRadius: 2,
     padding: "24px 28px",
     display: "flex",
     alignItems: "center",
@@ -214,8 +216,8 @@ const styles = {
     background: ORANGE,
     color: "#fff",
     border: "none",
-    borderRadius: 8,
-    fontSize: 13,
+    borderRadius: 2,
+    fontSize: 15,
     fontWeight: 600,
     cursor: "pointer",
     whiteSpace: "nowrap",
@@ -649,13 +651,14 @@ const FAQS = [
 ];
 
 export default function AboutPage({ onStart }) {
+  const [btnHover, setBtnHover] = useState(false);
   return (
     <div style={styles.page}>
 
       {/* 서비스 소개 */}
       <div style={styles.section}>
         <div style={styles.label}>서비스 소개</div>
-        <div style={styles.title}>DBR Case Atlas란?</div>
+        <div style={{ ...styles.title, fontSize:34 }}>DBR Case Atlas란?</div>
         <p style={styles.desc}>
           바쁜 실무자를 위한 AI 기반 케이스 탐색 서비스입니다. 키워드 대신 자연어로 비즈니스 고민을 입력하면,<br/>
           DBR 아카이브(2021–2026)에서 가장 유사한 케이스를 찾아드립니다.
@@ -742,7 +745,12 @@ export default function AboutPage({ onStart }) {
           <div>
             <div style={styles.ctaTitle}>지금 바로 케이스를 탐색해보세요</div>
           </div>
-          <button style={styles.btn} onClick={onStart}>
+          <button
+            style={{ ...styles.btn, background: btnHover ? "#C45E00" : "#E86F00" }}
+            onMouseEnter={() => setBtnHover(true)}
+            onMouseLeave={() => setBtnHover(false)}
+            onClick={onStart}
+          >
             케이스 탐색 시작
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Map, Bookmark } from "lucide-react";
 
 const ORANGE = "#E86F00";
@@ -13,6 +13,7 @@ const styles = {
     background: "#ffffff",
     color: "#1a1a1a",
     minHeight: "100vh",
+    overflow: "hidden",
     width: 1000,
     margin: "0 auto",
     boxSizing: "border-box",
@@ -47,7 +48,7 @@ const styles = {
   },
   hero: { padding: "56px 36px 44px", textAlign: "center" },
   heroEyebrow: {
-    fontSize: 13,
+    fontSize: 15,
     letterSpacing: "2px",
     textTransform: "uppercase",
     color: ORANGE,
@@ -55,7 +56,7 @@ const styles = {
   },
   heroTitle: {
     fontFamily: "Georgia, 'Times New Roman', serif",
-    fontSize: 38,
+    fontSize: 42,
     fontWeight: 600,
     lineHeight: 1.2,
     color: "#111111",
@@ -63,20 +64,21 @@ const styles = {
     letterSpacing: "-0.5px",
   },
   heroDesc: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#6b6258",
     lineHeight: 1.75,
     maxWidth: 480,
     margin: "0 auto 32px",
   },
   heroActions: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" },
+
   btnPrimary: {
     padding: "11px 24px",
     background: ORANGE,
     color: "#fff",
     border: "none",
     borderRadius: 2,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 600,
     cursor: "pointer",
   },
@@ -86,7 +88,7 @@ const styles = {
     color: "#1a1a1a",
     border: "0.5px solid #d0c8bf",
     borderRadius: 2,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 500,
     cursor: "pointer",
   },
@@ -104,8 +106,10 @@ const styles = {
     borderRight: "0.5px solid #ede8e2",
     flex: 1,
   },
-  statNum: { fontSize: 22, fontWeight: 600, color: ORANGE, marginBottom: 4, letterSpacing: "-0.5px" },
-  statLabel: { fontSize: 11, color: "#a09488", letterSpacing: "0.5px" },
+  statNum: { fontSize: 24, fontWeight: 600, color: ORANGE, marginBottom: 4, letterSpacing: "-0.5px" },
+
+  statLabel: { fontSize: 13, color: "#a09488", letterSpacing: "0.5px" },
+
   features: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
@@ -131,8 +135,10 @@ const styles = {
     fontSize: 18,
     color: ORANGE,
   },
-  featureTitle: { fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 8, letterSpacing: "-0.2px" },
-  featureDesc: { fontSize: 12, color: "#8a7e74", lineHeight: 1.65 },
+  featureTitle: { fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 8, letterSpacing: "-0.2px" },
+
+  featureDesc: { fontSize: 14, color: "#8a7e74", lineHeight: 1.65 },
+
   ctaBar: {
     margin: "0 36px 36px",
     padding: "20px 24px",
@@ -194,6 +200,11 @@ export default function LandingPage({ onStart, onAbout }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [primaryHover, setPrimaryHover] = useState(false);
   const [secondaryHover, setSecondaryHover] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
 
   return (
     <div style={styles.landing}>

@@ -53,6 +53,8 @@ export default function SearchPage({ onSearch }) {
   const [selectedCases, setSelectedCases] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
   const [textareaFocused, setTextareaFocused] = useState(false);
+  const [btnHover, setBtnHover] = useState(false);
+  const [clearBtnHover, setClearBtnHover] = useState(false);
 
   const handleSearch = async () => {
     if (!query.trim() && selectedCategory.length === 0) return;
@@ -173,13 +175,29 @@ export default function SearchPage({ onSearch }) {
 
         {/* 버튼 */}
         <div style={styles.btnRow}>
-          <button style={styles.btnClear} onClick={handleClear}>초기화</button>
+          <button
+            style={{
+              ...styles.btnClear,
+              background: clearBtnHover ? "#e8e8e8" : "transparent",
+              opacity: (!query.trim() && selectedCategory.length === 0) ? 0.5 : 1,
+              cursor: (!query.trim() && selectedCategory.length === 0) ? "not-allowed" : "pointer",
+            }}
+            onMouseEnter={() => setClearBtnHover(true)}
+            onMouseLeave={() => setClearBtnHover(false)}
+            onClick={handleClear}
+            disabled={!query.trim() && selectedCategory.length === 0}
+          >
+            초기화
+          </button>
           <button
             style={{
               ...styles.btnSearch,
+              background: btnHover ? "#C45E00" : "#E86F00",
               opacity: loading || (!query.trim() && selectedCategory.length === 0) ? 0.5 : 1,
               cursor: loading || (!query.trim() && selectedCategory.length === 0) ? "not-allowed" : "pointer",
             }}
+            onMouseEnter={() => setBtnHover(true)}
+            onMouseLeave={() => setBtnHover(false)}
             onClick={handleSearch}
             disabled={loading || (!query.trim() && selectedCategory.length === 0)}
           >
@@ -506,7 +524,7 @@ const styles = {
     fontSize: 15, fontFamily: "inherit", color: "#1a1a1a",
     background: "#f5f5f5", border: "1px solid #e0e0e0",
     borderRadius: 2, resize: "vertical", lineHeight: 1.6,
-    outline: "none", boxSizing: "border-box",
+    outline: "none", boxSizing: "border-box", resize: "none", maxHeight: 180
   },
   btnRow: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12, marginBottom: "2rem" },
 
