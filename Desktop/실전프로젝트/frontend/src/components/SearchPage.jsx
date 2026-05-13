@@ -376,14 +376,14 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
           width: "100%", padding: "10px", fontSize: 13, fontWeight: 500,
           color: "#fff",
           background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : "#E86F00",
-          border: "none", borderRadius: 8,
+          border: "none", borderRadius: 2,
           cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed",
           fontFamily: "inherit", marginTop: 8,
         }}
         onClick={onToggleSelect}
         disabled={!isSelected && selectedCases.length >= 3}
       >
-        {isSelected ? "✓ 비교에서 제거" : "＋ 비교에 추가"}
+        {isSelected ? "비교에서 제거" : "＋ 비교에 추가"}
       </button>
 
       {/* 하단 선택 안내 */}
@@ -580,7 +580,7 @@ const styles = {
   panelLink: {
     width: "100%", padding: "10px", fontSize: 13, fontWeight: 500,
     color: "#E86F00", background: "#FEF0E9", border: "none",
-    borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+    borderRadius: 2, cursor: "pointer", fontFamily: "inherit",
   },
   panelBottomHint: {
     fontSize: 12, color: "#999", textAlign: "center",
@@ -598,11 +598,11 @@ const styles = {
   bottomBarBtnOutline: {
     padding: "8px 16px", fontSize: 13, color: "#fff",
     background: "transparent", border: "1px solid #fff",
-    borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+    borderRadius: 2, cursor: "pointer", fontFamily: "inherit",
   },
   bottomBarBtnFill: {
     padding: "8px 16px", fontSize: 13, color: "#1a1a1a",
     background: "#fff", border: "none",
-    borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 500,
+    borderRadius: 2, cursor: "pointer", fontFamily: "inherit", fontWeight: 500,
   },
 };

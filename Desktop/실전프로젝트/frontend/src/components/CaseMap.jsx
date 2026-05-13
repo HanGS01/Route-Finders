@@ -396,7 +396,7 @@ const styles = {
     position: "relative",
     background: "#fafafa",
     border: "0.5px solid #e0e0e0",
-    borderRadius: 12,
+    borderRadius: 2,
     overflow: "hidden",
     marginBottom: "1rem",
   },

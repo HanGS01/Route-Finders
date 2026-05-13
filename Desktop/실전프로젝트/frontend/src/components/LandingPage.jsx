@@ -115,14 +115,14 @@ const styles = {
   featureCard: {
     background: "#f5f5f5",
     border: "0.5px solid #ede8e2",
-    borderRadius: 12,
+    borderRadius: 2,
     padding: 20,
     transition: "border-color 0.2s",
   },
   featureIcon: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 2,
     background: ORANGE_LIGHT,
     display: "flex",
     alignItems: "center",
