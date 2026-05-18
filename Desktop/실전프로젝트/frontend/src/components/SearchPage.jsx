@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CaseMap from "./CaseMap";
 
-// --- 4단계(성과 방향) 상수 삭제 ---
 const INDUSTRIES = ["IT·플랫폼", "커머스", "리테일", "식음료", "금융", "물류·운송", "제조", "콘텐츠·미디어", "헬스케어", "부동산·공간", "기타"];
 const CATEGORIES = ["고객", "성장", "혁신", "효율"];
 const KEYWORDS = {
@@ -19,8 +18,18 @@ const DUMMY_CASES = [
   { rank: 5, title: "21년 연속 1000만 관중 오리온 KBO의 경영 혁신", company: "스포츠 비즈니스 모델 혁신", industry: "스포츠", date: "2025년 3월", tags: ["스포츠마케팅", "팬경험"], summary: "KBO 오리온이 21년간 1000만 관중을 유지한 경영 혁신 및 팬 경험 설계 전략", similarity: 74 },
 ];
 
-const SYSTEM_PROMPT = `당신은 DBR(동아비즈니스리뷰) 케이스 아틀라스 서비스의 AI 분석 엔진입니다.
-사용자가 비즈니스 고민을 입력하면 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.`;
+const ALL_DATABASE_CASES = Array.from({ length: 120 }, (_, i) => ({
+  id: `all-${i + 1}`,
+  rank: i + 1,
+  title: `[전체 DB] 비즈니스 혁신 사례 연구 아티클 제 ${i + 1}탄`,
+  company: `연구 기업 ${String.fromCharCode(65 + (i % 26))}`,
+  industry: INDUSTRIES[i % INDUSTRIES.length],
+  date: `2024년 ${((i % 12) + 1)}월`,
+  tags: ["케이스스터디", "전략기획"],
+  summary: `DBR 메타데이터 전수조사에 따른 비즈니스 혁신 사례 분석 아티클입니다. 산업별 벤치마킹을 위한 기초 자료를 제공합니다.`
+}));
+
+const SYSTEM_PROMPT = `당신은 DBR(동아비즈니스리뷰) 케이스 아틀라스 서비스의 AI 분석 엔진입니다.`;
 
 export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [query, setQuery] = useState("");
@@ -28,24 +37,24 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   
-  // --- 3단계까지만 상태 관리 ---
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedKeyword, setSelectedKeyword] = useState(null);
   
-  // --- 모달 제어 상태 (문제 구조화 보기) ---
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
 
-  const [hasSearched, setHasSearched] = useState(false);
+  const [showAllList, setShowAllList] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
+
   const [selectedCase, setSelectedCase] = useState(null);
   const [selectedCases, setSelectedCases] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
   const [textareaFocused, setTextareaFocused] = useState(false);
   const [btnHover, setBtnHover] = useState(false);
   const [clearBtnHover, setClearBtnHover] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async () => {
-    // 4단계 필터 제외
     const filters = [selectedIndustry, selectedCategory, selectedKeyword]
       .filter(val => val && val !== "상관없음") 
       .join(", ");
@@ -60,7 +69,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
     try {
       await new Promise(resolve => setTimeout(resolve, 1500)); 
-
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +81,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       });
       
       if (!res.ok) throw new Error("API 연동 필요");
-
       const data = await res.json();
       const text = data.content.map((i) => i.text || "").join("");
       const clean = text.replace(/```json|```/g, "").trim();
@@ -81,7 +88,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       setResult(parsed);
       
     } catch (e) {
-      console.warn("API 연동 에러 발생! 기획 테스트용 더미 결과를 표시합니다.");
       setResult({
         problem_summary: "선택하신 조건과 입력하신 고민을 분석한 결과, 기존 비즈니스 모델의 노후화와 새로운 고객층 발굴 사이의 전략적 딜레마로 파악됩니다.",
         problem_types: [selectedCategory || "성장 전략", "비즈니스 모델"],
@@ -91,6 +97,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       });
     } finally {
       setLoading(false);
+      setHasSearched(true);
     }
   };
 
@@ -104,12 +111,15 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     setSelectedCategory(null);
     setSelectedKeyword(null);
     setShowAnalysisModal(false);
+    setShowAllList(false);
+    setVisibleCount(10);
+    setHasSearched(false);
   };
 
   const toggleSelectCase = (c) => {
     setSelectedCases((prev) =>
-      prev.find((s) => s.rank === c.rank)
-        ? prev.filter((s) => s.rank !== c.rank)
+      prev.find((s) => s.title === c.title)
+        ? prev.filter((s) => s.title !== c.title)
         : prev.length < 3 ? [...prev, c] : prev
     );
   };
@@ -128,8 +138,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         </div>
 
         <div style={styles.filterWrapper}>
-          
-          {/* 1. 산업군 */}
           <div style={styles.filterSection}>
             <p style={styles.filterLabel}>1. 산업군</p>
             <div style={styles.chipGroup}>
@@ -147,7 +155,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             </div>
           </div>
 
-          {/* 2. 문제 유형 */}
           {selectedIndustry && (
             <div style={styles.filterSection}>
               <p style={styles.filterLabel}>2. 문제 유형</p>
@@ -173,7 +180,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             </div>
           )}
 
-          {/* 3. 핵심 키워드 (4단계는 삭제됨) */}
           {selectedCategory && selectedCategory !== "상관없음" && (
             <div style={styles.filterSection}>
               <p style={styles.filterLabel}>3. 핵심 키워드</p>
@@ -249,15 +255,12 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       <div style={styles.splitRow}>
         <div style={styles.caseListCol}>
           <div style={styles.card}>
-            
-            {/* 💡 타이틀과 AI 분석(물음표) 버튼이 함께 있는 헤더 영역 */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <p style={styles.cardLabel}>
                 {result ? "유사 케이스 추천 " : "추천 케이스 TOP 5"}
                 {result && <span style={{ color: "#E86F00" }}>5</span>}
               </p>
               
-              {/* result(결과)가 있을 때만 물음표 버튼 렌더링 */}
               {result && (
                 <button 
                   style={styles.infoBtn} 
@@ -280,8 +283,9 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                 <CaseItem
                   key={c.rank}
                   item={c}
-                  isSelected={!!selectedCases.find((s) => s.rank === c.rank)}
-                  onClick={() => { setSelectedCase(c); toggleSelectCase(c); }}
+                  isSelected={!!selectedCases.find((s) => s.title === c.title)}
+                  isViewing={selectedCase?.title === c.title}
+                  onClick={() => setSelectedCase(c)} 
                 />
               ))}
             </div>
@@ -292,7 +296,59 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         </div>
       </div>
 
-      {/* --- AI 문제 구조화 분석 모달 (물음표 클릭 시 렌더링) --- */}
+      <div style={styles.bottomBrowseSection}>
+        {!showAllList ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <button 
+              style={styles.btnBrowseAll} 
+              onClick={() => setShowAllList(true)}
+            >
+              DBR 전체 케이스 120개 펼쳐보기 ↓
+            </button>
+          </div>
+        ) : (
+          <div style={styles.allListWrapper}>
+            <div style={styles.allListHeader}>
+              <h2 style={styles.allListTitle}>DBR 전체 케이스 아카이브 (총 120개)</h2>
+              <button style={styles.btnCloseAll} onClick={() => { setShowAllList(false); setVisibleCount(10); }}>접기 ✕</button>
+            </div>
+            
+            <div style={styles.allListGrid}>
+              {ALL_DATABASE_CASES.slice(0, visibleCount).map((c) => (
+                <div 
+                  key={c.id} 
+                  style={{
+                    ...styles.archiveCard,
+                    borderColor: selectedCases.find((s) => s.title === c.title) ? "#E86F00" : (selectedCase?.title === c.title ? "#f5b85a" : "#e8e8e8"),
+                    background: selectedCases.find((s) => s.title === c.title) ? "#FEF0E9" : "#fff"
+                  }}
+                  onClick={() => setSelectedCase(c)}
+                >
+                  <div style={styles.archiveHeader}>
+                    <span style={styles.archiveIndustry}>{c.industry}</span>
+                    <span style={styles.archiveDate}>{c.date}</span>
+                  </div>
+                  <div style={styles.archiveTitle}>{c.title}</div>
+                  <div style={styles.archiveCompany}>{c.company}</div>
+                  <p style={styles.archiveSummary}>{c.summary}</p>
+                </div>
+              ))}
+            </div>
+
+            {visibleCount < ALL_DATABASE_CASES.length && (
+              <div style={{ textAlign: "center", marginTop: 30 }}>
+                <button 
+                  style={styles.btnLoadMore} 
+                  onClick={() => setVisibleCount(prev => prev + 10)}
+                >
+                  케이스 10개 더보기 (+{ALL_DATABASE_CASES.length - visibleCount}개 남음)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {showAnalysisModal && result && (
         <AnalysisModal 
           result={result} 
@@ -305,14 +361,14 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           caseData={selectedCase}
           selectedCases={selectedCases}
           onToggleSelect={() => toggleSelectCase(selectedCase)}
-          isSelected={!!selectedCases.find((s) => s.rank === selectedCase.rank)}
+          isSelected={!!selectedCases.find((s) => s.title === selectedCase.title)}
           onClose={() => setSelectedCase(null)}
         />
       )}
       {showCompare && (
         <CompareSidebar
           cases={selectedCases}
-          onRemove={(rank) => setSelectedCases((prev) => prev.filter((s) => s.rank !== rank))}
+          onRemove={(title) => setSelectedCases((prev) => prev.filter((s) => s.title !== title))}
           onClose={() => setShowCompare(false)}
         />
       )}
@@ -331,7 +387,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   );
 }
 
-// --- 새롭게 추가된 AI 분석 모달 컴포넌트 ---
 function AnalysisModal({ result, onClose }) {
   return (
     <>
@@ -341,21 +396,17 @@ function AnalysisModal({ result, onClose }) {
           <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a", margin: 0 }}>AI 문제 구조화</h2>
           <button style={{ background: "none", border: "none", fontSize: 24, color: "#999", cursor: "pointer", lineHeight: 1 }} onClick={onClose}>✕</button>
         </div>
-        
         <p style={styles.problemSummary}>{result.problem_summary}</p>
         <hr style={styles.divider} />
-        
         <TagSection label="문제 유형" tags={result.problem_types} color="type" />
         <TagSection label="핵심 KPI" tags={result.kpis} color="kpi" />
         <TagSection label="예상 원인" tags={result.causes} color="cause" />
-        
         <button style={{ ...styles.btnSearch, width: "100%", marginTop: 24 }} onClick={onClose}>확인</button>
       </div>
     </>
   );
 }
 
-// 이하 LoadingDots, TagSection, CaseItem, CasePanel, CompareSidebar 컴포넌트는 기존 코드와 100% 동일
 function LoadingDots() {
   return (
     <div style={{ display: "flex", gap: 4 }}>
@@ -385,24 +436,35 @@ function TagSection({ label, tags, color }) {
   );
 }
 
-function CaseItem({ item, isSelected, onClick }) {
-  const [bookmarked, setBookmarked] = useState(
-    JSON.parse(localStorage.getItem("bookmarks") || "[]").some((b) => b.rank === item.rank)
-  );
+function CaseItem({ item, isSelected, isViewing, onClick }) {
+  const [bookmarked, setBookmarked] = useState(false);
+
+  useEffect(() => {
+    const checkBookmark = () => {
+      const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
+      setBookmarked(prev.some((b) => b.title === item.title));
+    };
+    checkBookmark();
+    window.addEventListener("bookmarkUpdated", checkBookmark);
+    return () => window.removeEventListener("bookmarkUpdated", checkBookmark);
+  }, [item.title]);
 
   const toggleBookmark = (e) => {
     e.stopPropagation();
     const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
-    const updated = bookmarked
-      ? prev.filter((b) => b.rank !== item.rank)
+    const isAlreadyBookmarked = prev.some((b) => b.title === item.title);
+    
+    const updated = isAlreadyBookmarked 
+      ? prev.filter((b) => b.title !== item.title) 
       : [...prev, item];
+      
     localStorage.setItem("bookmarks", JSON.stringify(updated));
-    setBookmarked(!bookmarked);
+    setBookmarked(!isAlreadyBookmarked);
     window.dispatchEvent(new Event("bookmarkUpdated"));
   };
 
   return (
-    <div style={{ ...styles.caseItem, borderColor: isSelected ? "#E86F00" : "#e8e8e8", background: isSelected ? "#FEF0E9" : "#fff" }} onClick={onClick}>
+    <div style={{ ...styles.caseItem, borderColor: isSelected ? "#E86F00" : (isViewing ? "#f5b85a" : "#e8e8e8"), background: isSelected ? "#FEF0E9" : "#fff" }} onClick={onClick}>
       <div style={{ ...styles.caseRank, color: item.rank <= 3 ? "#E86F00" : "#aaaaaa" }}>{item.rank}</div>
       <div style={{ flex: 1 }}>
         <p style={styles.caseTitle}>{item.title}</p>
@@ -413,7 +475,7 @@ function CaseItem({ item, isSelected, onClick }) {
         </div>
       </div>
       <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, flexShrink: 0 }} onClick={toggleBookmark}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
         </svg>
       </button>
@@ -422,38 +484,81 @@ function CaseItem({ item, isSelected, onClick }) {
 }
 
 function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClose }) {
+  const [bookmarked, setBookmarked] = useState(false);
+
+  useEffect(() => {
+    const checkBookmark = () => {
+      const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
+      setBookmarked(prev.some((b) => b.title === caseData.title));
+    };
+    checkBookmark();
+    window.addEventListener("bookmarkUpdated", checkBookmark);
+    return () => window.removeEventListener("bookmarkUpdated", checkBookmark);
+  }, [caseData.title]);
+
+  const toggleBookmark = (e) => {
+    e.stopPropagation();
+    const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
+    const isAlreadyBookmarked = prev.some((b) => b.title === caseData.title);
+    
+    const updated = isAlreadyBookmarked 
+      ? prev.filter((b) => b.title !== caseData.title) 
+      : [...prev, caseData];
+      
+    localStorage.setItem("bookmarks", JSON.stringify(updated));
+    setBookmarked(!isAlreadyBookmarked);
+    window.dispatchEvent(new Event("bookmarkUpdated"));
+  };
+
   return (
     <div style={styles.panel}>
       <div style={styles.panelHeader}>
         <h3 style={styles.panelTitle}>{caseData.title}</h3>
-        <button style={{ border: "none", background: "none", fontSize: 18, color: "#ccc", cursor: "pointer" }} onClick={onClose}>✕</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} onClick={toggleBookmark}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+          <button style={{ border: "none", background: "none", fontSize: 20, color: "#ccc", cursor: "pointer" }} onClick={onClose}>✕</button>
+        </div>
       </div>
       <p style={styles.panelMeta}>{caseData.company}</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         <span style={styles.caseTag}>케이스스터디</span>
         <span style={styles.caseTag}>{caseData.industry}</span>
         {caseData.date && <span style={styles.caseTag}>{caseData.date}</span>}
-        {caseData.tags?.map((t) => (
-          <span key={t} style={{ ...styles.caseTag, background: "#FEF0E9", color: "#E86F00" }}>{t}</span>
-        ))}
       </div>
-      <div style={styles.reasonBox}>
-        <p style={styles.reasonTitle}>추천 이유</p>
-        <p style={styles.reasonItem}>→ 문제 해결 접근 방식이 매우 유사합니다</p>
-        <p style={styles.reasonItem}>→ 텍스트 유사도: {caseData.similarity}% (매우 높음)</p>
+      
+      <div style={{ flex: 1 }}>
+        <div style={styles.reasonBox}>
+          <p style={styles.reasonTitle}>상세 요약 및 전략</p>
+          <p style={styles.reasonItem}>→ {caseData.summary}</p>
+        </div>
       </div>
-      <p style={styles.panelSummary}>{caseData.summary}</p>
-      <button style={styles.panelLink}>DBR 아티클 보기 →</button>
-      <button
-        style={{ width: "100%", padding: "10px", fontSize: 14, fontWeight: 500, color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : "#E86F00", border: "none", borderRadius: 2, cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed", fontFamily: "inherit", marginTop: 8 }}
-        onClick={onToggleSelect}
-        disabled={!isSelected && selectedCases.length >= 3}
-      >
-        {isSelected ? "비교에서 제거" : "＋ 비교에 추가"}
-      </button>
-      {selectedCases.length > 0 && (
-        <div style={styles.panelBottomHint}>케이스를 비교하여 공통점과 차이점을 확인해보세요</div>
-      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
+        <button style={styles.panelLink}>
+          DBR 원문 아티클 읽기
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </button>
+        <button
+          style={{ 
+            width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
+            color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : "#E86F00", 
+            border: "none", borderRadius: 8, cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed", 
+            fontFamily: "inherit", transition: "all 0.2s" 
+          }}
+          onClick={onToggleSelect}
+          disabled={!isSelected && selectedCases.length >= 3}
+        >
+          {isSelected ? "비교에서 제거" : "＋ 비교에 추가"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -478,7 +583,7 @@ function CompareSidebar({ cases, onRemove, onClose }) {
               <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
                 <th style={{ padding: "14px 16px", fontSize: 13, color: "#999", fontWeight: 500, textAlign: "left", width: 100, background: "#fafafa" }}>비교 항목</th>
                 {cases.map((c, i) => (
-                  <th key={c.rank} style={{ padding: "14px 16px", textAlign: "left", background: "#fafafa", borderLeft: "1px solid #e8e8e8" }}>
+                  <th key={c.title || c.rank} style={{ padding: "14px 16px", textAlign: "left", background: "#fafafa", borderLeft: "1px solid #e8e8e8" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: "#E86F00" }}>{i + 1}</div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{c.title}</span>
@@ -489,13 +594,9 @@ function CompareSidebar({ cases, onRemove, onClose }) {
             </thead>
             <tbody>
               {[
-                { label: "문제 유형", key: "problemType", values: cases.map((c) => c.tags?.[0] ?? "-") },
-                { label: "산업", key: "industry", values: cases.map((c) => c.industry) },
-                { label: "카테고리", key: "category", values: cases.map(() => "케이스스터디") },
+                { label: "산업 분야", key: "industry", values: cases.map((c) => c.industry) },
                 { label: "발행일", key: "date", values: cases.map((c) => c.date ?? "-") },
-                { label: "주요 키워드", key: "tags", values: cases.map((c) => (<div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>{c.tags?.map((t) => <span key={t} style={{ padding: "2px 8px", fontSize: 11, background: "#FEF0E9", color: "#E86F00", borderRadius: 4 }}>{t}</span>)}</div>)) },
-                { label: "유사도", key: "similarity", values: cases.map((c) => (<div><div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#999", marginBottom: 4 }}><span></span><span style={{ color: "#E86F00", fontWeight: 500 }}>{c.similarity}%</span></div><div style={{ height: 4, background: "#f0f0f0", borderRadius: 2 }}><div style={{ height: "100%", background: "#E86F00", borderRadius: 2, width: `${c.similarity}%` }} /></div></div>)) },
-                { label: "요약", key: "summary", values: cases.map((c) => <p style={{ fontSize: 12, color: "#555", lineHeight: 1.6 }}>{c.summary}</p>) },
+                { label: "분석 요약", key: "summary", values: cases.map((c) => <p style={{ fontSize: 12, color: "#555", lineHeight: 1.6 }}>{c.summary}</p>) },
               ].map((row) => (
                 <tr key={row.key} style={{ borderBottom: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "14px 16px", fontSize: 13, color: "#666", fontWeight: 500, background: "#fafafa", verticalAlign: "top" }}>{row.label}</td>
@@ -509,7 +610,6 @@ function CompareSidebar({ cases, onRemove, onClose }) {
         </div>
         <div style={{ padding: "1rem 2rem", borderTop: "1px solid #e8e8e8", display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button style={{ padding: "10px 20px", fontSize: 13, color: "#666", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }} onClick={onClose}>닫기</button>
-          <button style={{ padding: "10px 20px", fontSize: 13, fontWeight: 500, color: "#fff", background: "#E86F00", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>선택한 케이스 PDF로 내보내기</button>
         </div>
       </div>
     </>
@@ -530,7 +630,6 @@ const styles = {
   chipGroup: { display: "flex", flexWrap: "wrap", gap: 8 },
   chip: { padding: "7px 18px", fontSize: 14, fontWeight: 500, color: "#666", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
   chipActive: { padding: "7px 18px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#E86F00", border: "1px solid #E86F00", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(232, 111, 0, 0.2)" },
-  
   chipNone: { padding: "7px 18px", fontSize: 14, fontWeight: 500, color: "#888", background: "#f9f9f9", border: "1px dashed #d0d0d0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
   chipActiveNone: { padding: "7px 18px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#666", border: "1px solid #666", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)" },
 
@@ -538,38 +637,63 @@ const styles = {
   btnRow: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12, marginBottom: "2rem" },
   btnClear: { padding: "8px 16px", fontSize: 15, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" },
   btnSearch: { padding: "8px 20px", fontSize: 15, fontWeight: 500, color: "#fff", background: "#E86F00", border: "none", borderRadius: 2, fontFamily: "inherit" },
-  exampleArea: { marginBottom: "2rem" },
+  exampleArea: { marginBottom: "1.5rem" },
   chipsLabel: { fontSize: 17, color: "#999", marginBottom: 8, textAlign: "center" },
   exampleChip: { padding: "5px 12px", fontSize: 15, color: "#E86F00", background: "#fef0e9", border: "none", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
   loadingRow: { display: "flex", alignItems: "center", gap: 8, padding: "1rem 0" },
   loadingText: { fontSize: 14, color: "#999" },
   dot: { width: 6, height: 6, borderRadius: "50%", background: "#E86F00", animation: "pulse 1.2s ease-in-out infinite" },
   errorText: { fontSize: 14, color: "#A32D2D", padding: "0.5rem 0" },
-  
-  // --- AI 분석 버튼(물음표) 스타일 ---
-  infoBtn: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "none", borderRadius: 20, cursor: "pointer", transition: "background 0.2s" },
 
+  infoBtn: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "none", borderRadius: 20, cursor: "pointer", transition: "background 0.2s" },
   card: { background: "#fff", border: "0.5px solid #fff", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: 12 },
   cardLabel: { fontSize: 21, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#1a1a1a", margin: 0, textAlign: "left" },
   problemSummary: { fontSize: 15, color: "#333", lineHeight: 1.7, marginBottom: 16 },
   divider: { border: "none", borderTop: "1px solid #f0f0f0", margin: "16px 0" },
   tagSectionLabel: { fontSize: 12, color: "#999", marginBottom: 8, fontWeight: 500 },
   tag: { padding: "4px 10px", fontSize: 13, borderRadius: 4, fontWeight: 500 },
-  caseItem: { display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 12px", border: "none", borderBottom: "1px solid #f0f0f0", borderRadius: 0, cursor: "pointer" },
+  
+  caseItem: { display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 12px", border: "none", borderBottom: "1px solid #f0f0f0", borderRadius: 0, cursor: "pointer", transition: "all 0.2s" },
   caseRank: { width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, flexShrink: 0, color: "#1a1a1a" },
   caseTitle: { fontSize: 16, fontWeight: 500, color: "#1a1a1a", marginBottom: 3 },
   caseMeta: { fontSize: 14, color: "#999" },
   caseTag: { padding: "4px 10px", fontSize: 14, color: "#555", background: "#f0f0f0", borderRadius: 2 },
-  panel: { position: "fixed", top: 0, right: 0, width: 400, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)" },
+
+  bottomBrowseSection: { width: 1000, margin: "0 auto 5rem", padding: "0 2rem", boxSizing: "border-box" },
+  btnBrowseAll: { width: "100%", padding: "14px", fontSize: 16, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "1px dashed #E86F00", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
+  allListWrapper: { background: "#fff", border: "1px solid #ede8e2", borderRadius: 12, padding: 24, marginTop: 10 },
+  allListHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  allListTitle: { fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0 },
+  btnCloseAll: { background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 },
+  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+  
+  archiveCard: { padding: 18, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
+  archiveHeader: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#999", marginBottom: 6 },
+  archiveIndustry: { fontWeight: 600, color: "#E86F00" },
+  archiveDate: {},
+  archiveTitle: { fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 },
+  archiveCompany: { fontSize: 13, color: "#666", marginBottom: 8 },
+  archiveSummary: { fontSize: 13, color: "#666", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  btnLoadMore: { padding: "12px 30px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#1a1a1a", border: "none", borderRadius: 6, cursor: "pointer", transition: "background 0.2s" },
+
+  // 💡 여백이 추가된 panel 스타일 부분
+  panel: { position: "fixed", top: 0, right: 0, width: 400, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", paddingBottom: 100, overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column" },
+  
   panelHeader: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 },
   panelTitle: { fontSize: 17, fontWeight: 600, color: "#1a1a1a", lineHeight: 1.4, flex: 1, marginRight: 8 },
   panelMeta: { fontSize: 14, color: "#999", marginBottom: 10 },
   reasonBox: { background: "#FEF0E9", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
   reasonTitle: { fontSize: 15, fontWeight: 500, color: "#E86F00", marginBottom: 6 },
   reasonItem: { fontSize: 14, color: "#666", marginBottom: 3 },
-  panelSummary: { fontSize: 14, color: "#444", lineHeight: 1.7, marginBottom: 16 },
-  panelLink: { width: "100%", padding: "10px", fontSize: 14, fontWeight: 500, color: "#E86F00", background: "#FEF0E9", border: "none", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" },
-  panelBottomHint: { fontSize: 13, color: "#999", textAlign: "center", padding: "12px", background: "#f9f9f9", borderRadius: 8 },
+  
+  panelLink: { 
+    width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
+    color: "#E86F00", background: "#fff", border: "1px solid #E86F00", 
+    borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+    transition: "all 0.2s"
+  },
+  
   bottomBar: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#1a1a1a", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 300 },
   bottomBarText: { fontSize: 15, color: "#fff" },
   bottomBarBtnOutline: { padding: "8px 16px", fontSize: 14, color: "#fff", background: "transparent", border: "1px solid #fff", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" },
