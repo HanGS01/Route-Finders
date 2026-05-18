@@ -5,7 +5,6 @@ import LandingPage from './components/LandingPage'
 import AboutPage from './components/AboutPage'
 import SearchPage from './components/SearchPage'
 import BookmarkPage from './components/BookmarkPage'
-import CaseTestPage from './components/CaseTestPage'
 
 
 function App() {
@@ -40,14 +39,6 @@ function App() {
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
             </svg>
           </button>
-
-          <button
-            style={{ padding: "8px 16px", fontSize: 14, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" }}
-            onClick={() => setPage("caseTest")}
-          >
-            DB테스트
-          </button>
-
           <button
             style={{ padding: "8px 16px", fontSize: 14, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" }}
             onClick={() => setPage("login")}
@@ -77,7 +68,6 @@ function App() {
         />
       )}
       {page === "bookmark" && <BookmarkPage onBack={() => setPage("search")} />}
-      {page === "caseTest" && <CaseTestPage onBack={() => setPage("search")} />}
     </div>
   );
 }
