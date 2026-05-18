@@ -21,9 +21,6 @@ export default function BookmarkPage({ onBack }) {
       {/* 헤더 */}
       <div style={styles.pageHeader}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
           <h2 style={styles.pageTitle}>북마크</h2>
           <span style={styles.count}>{bookmarks.length}개</span>
         </div>
@@ -79,7 +76,7 @@ export default function BookmarkPage({ onBack }) {
 }
 
 const styles = {
-  page: { maxWidth: 1100, margin: "0 auto", padding: "2.5rem 2rem", fontFamily: "'Pretendard', 'Apple SD Gothic Neo', sans-serif" },
+  page: { maxWidth: 930, margin: "0 auto", padding: "2.5rem 2rem", fontFamily: "'Pretendard', 'Apple SD Gothic Neo', sans-serif" },
   pageHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", paddingBottom: "1.25rem", borderBottom: "2px solid #E86F00" },
   pageTitle: { fontSize: 24, fontWeight: 700, color: "#1a1a1a" },
   count: { fontSize: 14, color: "#E86F00", fontWeight: 500, background: "#FEF0E9", padding: "2px 10px", borderRadius: 20 },

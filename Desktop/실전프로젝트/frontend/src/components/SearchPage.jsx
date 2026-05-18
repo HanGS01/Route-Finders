@@ -175,7 +175,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
           {/* 3. 핵심 키워드 (4단계는 삭제됨) */}
           {selectedCategory && selectedCategory !== "상관없음" && (
-            <div style={styles.filterSection}>
+            <div style={{ ...styles.filterSection, borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
               <p style={styles.filterLabel}>3. 핵심 키워드</p>
               <div style={styles.chipGroup}>
                 {KEYWORDS[selectedCategory].map((kw) => (
@@ -201,7 +201,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               background: textareaFocused ? "#fff" : "#f5f5f5",
               border: textareaFocused ? "1.5px solid #E86F00" : "1px solid #e0e0e0",
             }}
-            placeholder="비즈니스 고민을 자유롭게 입력해주세요. (선택한 칩의 내용과 함께 분석됩니다)"
+            placeholder="비즈니스 고민을 자유롭게 입력해주세요."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setTextareaFocused(true)}
@@ -229,11 +229,13 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         <div style={styles.exampleArea}>
           <p style={styles.chipsLabel}>예시 고민</p>
           <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 6 }}>
-            <button style={styles.exampleChip} onClick={() => setQuery("매출은 나오는데 수익성이 계속 악화되고 있어요")}>매출은 나오는데 수익성이 계속 악화되고 있어요</button>
-            <button style={styles.exampleChip} onClick={() => setQuery("브랜드 인지도는 높은데 구매 전환이 안 돼요")}>브랜드 인지도는 높은데 구매 전환이 안 돼요</button>
+            <span style={styles.exampleChip}>조직 내 실행력이 너무 떨어지는데 어떻게 개선할 수 있을까요</span>
+            <span style={styles.exampleChip}>신사업을 시작하려는데 어느 시장부터 진입해야 할지 모르겠어요</span>
           </div>
           <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-            <button style={styles.exampleChip} onClick={() => setQuery("조직 내 실행력이 너무 떨어지는데 어떻게 개선할 수 있을까요")}>조직 내 실행력이 너무 떨어지는데 어떻게 개선할 수 있을까요</button>
+            <span style={styles.exampleChip}>매출은 나오는데 수익성이 계속 악화되고 있어요</span>
+            <span style={styles.exampleChip}>브랜드 인지도는 높은데 구매 전환이 안 돼요</span>
+            <span style={styles.exampleChip}>고객 이탈률이 높아지고 있는데 원인을 모르겠어요</span>
           </div>
         </div>
 
@@ -526,13 +528,13 @@ const styles = {
   
   filterWrapper: { marginBottom: "1.5rem", background: "#fff", border: "1px solid #ede8e2", borderRadius: 12, padding: "20px 24px", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
   filterSection: { marginBottom: 16, paddingBottom: 16, borderBottom: "1px dashed #f0f0f0" },
-  filterLabel: { fontSize: 14, fontWeight: 600, color: "#666", marginBottom: 10 },
+  filterLabel: { fontSize: 16, fontWeight: 600, color: "#666", marginBottom: 10 },
   chipGroup: { display: "flex", flexWrap: "wrap", gap: 8 },
-  chip: { padding: "7px 18px", fontSize: 14, fontWeight: 500, color: "#666", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
-  chipActive: { padding: "7px 18px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#E86F00", border: "1px solid #E86F00", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(232, 111, 0, 0.2)" },
+  chip: { padding: "7px 18px", fontSize: 15, fontWeight: 500, color: "#666", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
+  chipActive: { padding: "7px 18px", fontSize: 15, fontWeight: 600, color: "#fff", background: "#E86F00", border: "1px solid #E86F00", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(232, 111, 0, 0.2)" },
   
-  chipNone: { padding: "7px 18px", fontSize: 14, fontWeight: 500, color: "#888", background: "#f9f9f9", border: "1px dashed #d0d0d0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
-  chipActiveNone: { padding: "7px 18px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#666", border: "1px solid #666", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)" },
+  chipNone: { padding: "7px 18px", fontSize: 15, fontWeight: 500, color: "#888", background: "#f9f9f9", border: "1px dashed #d0d0d0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
+  chipActiveNone: { padding: "7px 18px", fontSize: 15, fontWeight: 600, color: "#fff", background: "#666", border: "1px solid #666", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)" },
 
   textarea: { width: "100%", minHeight: 100, padding: "14px 16px", fontSize: 16, fontFamily: "inherit", color: "#1a1a1a", background: "#f5f5f5", border: "1px solid #e0e0e0", borderRadius: 2, lineHeight: 1.6, outline: "none", boxSizing: "border-box", resize: "none", maxHeight: 180 },
   btnRow: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12, marginBottom: "2rem" },
