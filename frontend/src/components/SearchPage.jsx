@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import CaseMap from "./CaseMap";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const AI_API_BASE_URL = import.meta.env.VITE_AI_API_BASE_URL || "http://localhost:8000";
 
 const INDUSTRIES = ["IT·플랫폼", "커머스", "리테일", "식음료", "금융", "물류·운송", "제조", "콘텐츠·미디어", "헬스케어", "부동산·공간", "기타"];
 const CATEGORIES = ["고객", "성장", "혁신", "효율"];
@@ -11,8 +12,29 @@ const KEYWORDS = {
   "혁신": ["디지털전환", "기술전환필요", "서비스노후화", "경쟁심화", "사용자변화"],
   "효율": ["생산성", "비용", "운영복잡도", "물류", "공급망"]
 };
+const getStatusLabel = (status) => {
+  const statusMap = {
+    DIRECT_MATCH: "딱 맞는 사례를 찾았어요",
+    CLOSE_MATCH: "꽤 가까운 사례를 찾았어요",
+    ALTERNATIVE_MATCH: "참고할 만한 대체 사례예요",
+    LOW_MATCH: "조금 더 구체적인 설명이 필요해요",
+    NO_RESULT: "아직 맞는 사례를 찾지 못했어요",
+  };
 
-const SYSTEM_PROMPT = `당신은 DBR(동아비즈니스리뷰) 케이스 아틀라스 서비스의 AI 분석 엔진입니다.`;
+  return statusMap[status] || "추천 결과";
+  };
+
+const getStatusMessage = (status, defaultMessage) => {
+  const messageMap = {
+    DIRECT_MATCH: "입력한 고민과 잘 맞는 DBR 케이스를 찾았어요.",
+    CLOSE_MATCH: "완전히 같지는 않지만, 문제 상황과 해결 방향이 꽤 비슷한 사례예요.",
+    ALTERNATIVE_MATCH: "정확히 같은 사례는 부족하지만, 고민의 일부 조건과 연결되는 참고 사례를 보여드릴게요.",
+    LOW_MATCH: "지금 입력만으로는 딱 맞는 사례를 찾기 어려워요. 산업, 문제 상황, 원하는 해결 방향을 조금 더 적어보세요.",
+    NO_RESULT: "조건에 맞는 추천 결과를 찾지 못했어요. 검색어를 조금 다르게 입력해보세요.",
+  };
+
+  return messageMap[status] || defaultMessage || "";
+};
 
 export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [query, setQuery] = useState("");
@@ -39,8 +61,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [btnHover, setBtnHover] = useState(false);
   const [clearBtnHover, setClearBtnHover] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-
-  const [browseHover, setBrowseHover] = useState(false);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -91,8 +111,6 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         sorted.forEach((item, index) => { item.rank = index + 1; });
 
         setAllCases(sorted);
-
-        setAllCases([...mappedCases].sort((a, b) => (b.pub_year || 0) - (a.pub_year || 0)));
       } catch (error) {
         console.error("케이스 데이터 로딩 실패:", error);
         setCaseLoadError(error.message);
@@ -104,57 +122,127 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
   const handleSearch = async () => {
     const filters = [selectedIndustry, selectedCategory, selectedKeyword]
-      .filter(val => val && val !== "상관없음") 
+      .filter((val) => val && val !== "상관없음")
       .join(", ");
-    
+
     if (!query.trim() && !filters) return;
-    
-    const searchQuery = query.trim() ? `[필터조건: ${filters}] ${query.trim()}` : filters;
-    
+
+    const searchQuery = query.trim()
+      ? filters
+        ? `[필터조건: ${filters}] ${query.trim()}`
+        : query.trim()
+      : filters;
+
     setLoading(true);
     setResult(null);
     setError(null);
+    setSelectedCase(null);
+    setShowAnalysisModal(false);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500)); 
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(`${AI_API_BASE_URL}/recommend`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1500,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: "user", content: searchQuery }],
+          query: searchQuery,
+          top_k: 80,
+          rerank_k: 20,
+          final_k: 5,
         }),
       });
-      
-      if (!res.ok) throw new Error("API 연동 필요");
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.detail || "추천 API 호출에 실패했습니다.");
+      }
+
       const data = await res.json();
-      const text = data.content.map((i) => i.text || "").join("");
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      setResult(parsed);
-      
-    } catch (e) {
-      const filteredCases = getFilteredCases(allCases, {
-        selectedIndustry,
-        selectedCategory,
-        selectedKeyword,
-        query,
-      });
+
+      const queryMeta = data.query_meta || {};
+      const resultStatus = data.result_status || {};
+      const recommendations = data.recommendations || [];
+
+      const mappedCases = recommendations.map((item, index) => ({
+        id: item.case_idx,
+        rank: item.ranking || index + 1,
+        case_idx: item.case_idx,
+        title: item.title,
+        company: item.comp_name,
+        industry: item.industry,
+        date: item.pub_year ? `${item.pub_year}년` : "",
+        tags: [item.prob_main, item.prob_keyword, item.sol_type].filter(Boolean),
+        summary: item.summary,
+
+        similarity: item.final_score != null
+          ? Math.round(Number(item.final_score) * 100)
+          : null,
+
+        isRecommended: true,
+
+        chapter_title: item.chapter_title,
+        src_url: item.src_url,
+        issue_no: item.issue_no,
+        pub_year: item.pub_year,
+        comp_name: item.comp_name,
+        comp_size: item.comp_size,
+
+        prob_main: item.prob_main,
+        prob_keyword: item.prob_keyword,
+        prob_def: item.prob_def,
+        sol_type: item.sol_type,
+        sol_detail: item.sol_detail,
+        perf_type: item.perf_type,
+        perf_dir: item.perf_dir,
+
+        x: item.x,
+        y: item.y,
+
+        meta_sim: item.meta_sim,
+        summary_sim: item.summary_sim,
+        metadata_bonus: item.metadata_bonus,
+        base_score: item.base_score,
+        gpt_relevance_score: item.gpt_relevance_score,
+        condition_match: item.condition_match,
+        raw_final_score: item.raw_final_score,
+        final_score: item.final_score,
+        reco_reason: item.reco_reason,
+        reason_check: item.reason_check,
+      }));
 
       setResult({
-        problem_summary: "선택하신 조건과 입력하신 고민을 분석한 결과, 입력 조건과 유사한 문제 유형 및 해결 전략을 가진 DBR 케이스를 우선 탐색했습니다.",
-        problem_types: [selectedCategory || "문제 유형", selectedKeyword || "핵심 키워드"].filter(Boolean),
-        kpis: ["성과 개선", "고객 반응", "운영 효율"],
-        causes: ["시장 변화", "고객 니즈 변화", "실행 전략 차이"],
-        cases: filteredCases.slice(0, 5).map((c, index) => ({
-          ...c,
-          rank: index + 1,
-          similarity: Math.floor(Math.random() * (95 - 75) + 75),
-          isRecommended: true,
-        }))
+        problem_summary:
+          resultStatus.message ||
+          queryMeta.expected_cause ||
+          "입력하신 고민을 바탕으로 유사한 DBR 케이스를 추천했습니다.",
+
+        problem_types: [
+          queryMeta.prob_main,
+          ...(Array.isArray(queryMeta.prob_keyword) ? queryMeta.prob_keyword : []),
+        ].filter(Boolean),
+
+        kpis: [
+          queryMeta.perf_type,
+          queryMeta.sol_type,
+        ].filter(Boolean),
+
+        causes: [
+          queryMeta.expected_cause,
+          ...(Array.isArray(queryMeta.must_have) ? queryMeta.must_have : []),
+        ].filter(Boolean),
+
+        query_meta: queryMeta,
+        result_status: resultStatus,
+        cases: mappedCases,
       });
+
+      if (onSearch) {
+        onSearch(mappedCases);
+      }
+    } catch (e) {
+      console.error("추천 API 호출 실패:", e);
+      setError(e.message || "추천 결과를 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
       setHasSearched(true);
@@ -206,6 +294,9 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       rank: matched.rank,
       similarity: matched.similarity,
       isRecommended: true,
+      reco_reason: matched.reco_reason,
+      condition_match: matched.condition_match,
+      final_score: matched.final_score,
     };
   });
 
@@ -363,6 +454,21 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             </div>
 
             <hr style={{ border: "none", borderTop: "2px solid #E86F00", margin: "0 0 12px 0" }} />
+
+            {result?.result_status && (
+          <div style={styles.recommendStatusBox}>
+            <p style={styles.recommendStatusTitle}>
+              {getStatusLabel(result.result_status.status)}
+            </p>
+            <p style={styles.recommendStatusMessage}>
+              {getStatusMessage(
+                result.result_status.status,
+                result.result_status.message
+              )}
+            </p>
+          </div>
+        )}
+
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {cases.map((c) => (
                 <CaseItem
@@ -378,7 +484,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         </div>
         <div style={styles.mapCol}>
           <CaseMap
-            cases={searchedCases.length > 0 ? searchedCases : mapCases}
+            cases={mapCases}
             highlightedIds={recommendedCaseIds}
             onCaseClick={setSelectedCase}
           />
@@ -389,13 +495,10 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         {!showAllList ? (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <button 
-              style={{ ...styles.btnBrowseAll, background: browseHover ? "#E86F00" : "#F2F2F2", color: browseHover ? "#fff" : "#1a1a1a", border: browseHover ? "1px solid #E86F00" : "1px solid #ddd" }}
+              style={styles.btnBrowseAll} 
               onClick={() => setShowAllList(true)}
-              onMouseEnter={() => setBrowseHover(true)}
-              onMouseLeave={() => setBrowseHover(false)}
             >
-              {/* DBR 전체 케이스 {allCases.length}개 펼쳐보기 */}
-              DBR 전체 케이스 펼쳐보기
+              DBR 전체 케이스 {allCases.length}개 펼쳐보기
             </button>
           </div>
         ) : (
@@ -411,8 +514,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                   key={c.case_idx || c.id} 
                   style={{
                     ...styles.archiveCard,
-                    borderBottom: "1px solid #f0f0f0",
-                    borderLeft: selectedCase?.title === c.title ? "3px solid #E86F00" : "3px solid transparent",
+                    borderColor: selectedCases.find((s) => s.title === c.title) ? "#E86F00" : (selectedCase?.title === c.title ? "#f5b85a" : "#e8e8e8"),
                     background: selectedCases.find((s) => s.title === c.title) ? "#FEF0E9" : "#fff"
                   }}
                   onClick={() => setSelectedCase(c)}
@@ -610,6 +712,8 @@ function CaseItem({ item, isSelected, isViewing, onClick }) {
         </div>
         <p style={styles.caseTitle}>{item.title}</p>
         <p style={styles.caseMeta}>{item.company}</p>
+
+        
       </div>
       <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, flexShrink: 0 }} onClick={toggleBookmark}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -622,9 +726,7 @@ function CaseItem({ item, isSelected, isViewing, onClick }) {
 
 function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClose }) {
   const [bookmarked, setBookmarked] = useState(false);
-  const [linkHover, setLinkHover] = useState(false); 
-  const [addHover, setAddHover] = useState(false);
-  
+
   useEffect(() => {
     const checkBookmark = () => {
       const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
@@ -660,7 +762,7 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
       <div style={styles.panelHeader}>
         <h3 style={styles.panelTitle}>{caseData.title}</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", marginTop: 8 }} onClick={toggleBookmark}>
+          <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} onClick={toggleBookmark}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
             </svg>
@@ -669,15 +771,28 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
         </div>
       </div>
       <p style={styles.panelMeta}>{caseData.company}</p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12, alignItems: "center" }}>
-        <span style={{ fontSize: 14, color: "#E86F00" }}>케이스스터디</span>
-        {caseData.industry && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.industry}</span></>}
-        {caseData.date && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.date}</span></>}
-        {caseData.prob_main && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.prob_main}</span></>}
-        {caseData.sol_type && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.sol_type}</span></>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+        <span style={styles.caseTag}>케이스스터디</span>
+        <span style={styles.caseTag}>{caseData.industry}</span>
+        {caseData.date && <span style={styles.caseTag}>{caseData.date}</span>}
+        {caseData.prob_main && <span style={styles.caseTag}>{caseData.prob_main}</span>}
+        {caseData.sol_type && <span style={styles.caseTag}>{caseData.sol_type}</span>}
       </div>
       
       <div style={{ flex: 1 }}>
+        {caseData.reco_reason && (
+          <div style={styles.reasonBox}>
+            <p style={styles.reasonTitle}>AI 추천 이유</p>
+            <p style={styles.reasonItem}>→ {caseData.reco_reason}</p>
+            {caseData.condition_match && (
+              <p style={styles.reasonItem}>
+                조건 일치: {caseData.condition_match}
+                {caseData.final_score != null ? ` · 추천점수: ${caseData.final_score}` : ""}
+              </p>
+            )}
+          </div>
+        )}
+
         <div style={styles.reasonBox}>
           <p style={styles.reasonTitle}>상세 요약 및 전략</p>
           <p style={styles.reasonItem}>→ {caseData.summary}</p>
@@ -699,12 +814,7 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-        <button 
-          style={{ ...styles.panelLink, background: linkHover ? "#FEF0E9" : "#fff" }} 
-          onClick={openOriginalArticle}
-          onMouseEnter={() => setLinkHover(true)}
-          onMouseLeave={() => setLinkHover(false)}
-        >
+        <button style={styles.panelLink} onClick={openOriginalArticle}>
           DBR 원문 아티클 읽기
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -715,13 +825,11 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
         <button
           style={{ 
             width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
-            color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : addHover ? "#C45E00" : "#E86F00", 
+            color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : "#E86F00", 
             border: "none", borderRadius: 2, cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed", 
             fontFamily: "inherit", transition: "all 0.2s" 
           }}
           onClick={onToggleSelect}
-          onMouseEnter={() => setAddHover(true)}
-          onMouseLeave={() => setAddHover(false)}
           disabled={!isSelected && selectedCases.length >= 3}
         >
           {isSelected ? "비교에서 제거" : "＋ 비교에 추가"}
@@ -815,6 +923,49 @@ const styles = {
   dot: { width: 6, height: 6, borderRadius: "50%", background: "#E86F00", animation: "pulse 1.2s ease-in-out infinite" },
   errorText: { fontSize: 14, color: "#A32D2D", padding: "0.5rem 0" },
 
+  recommendStatusBox: {
+    background: "#FEF0E0",
+    border: "1px solid #F4C28A",
+    borderRadius: 8,
+    padding: "12px 14px",
+    marginBottom: 12,
+  },
+
+  recommendStatusTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#E86F00",
+    marginBottom: 4,
+  },
+
+  recommendStatusMessage: {
+    fontSize: 13,
+    color: "#555",
+    lineHeight: 1.5,
+    margin: 0,
+  },
+
+  caseReason: {
+    fontSize: 12,
+    color: "#666",
+    lineHeight: 1.5,
+    marginTop: 6,
+    marginBottom: 4,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  },
+
+  caseScoreRow: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    fontSize: 12,
+    color: "#E86F00",
+    marginTop: 4,
+  },
+
   infoBtn: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "none", borderRadius: 20, cursor: "pointer", transition: "background 0.2s" },
   card: { background: "#fff", border: "0.5px solid #fff", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: 12 },
   cardLabel: { fontSize: 21, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#1a1a1a", margin: 0, textAlign: "left" },
@@ -830,31 +981,32 @@ const styles = {
   caseTag: { padding: "4px 10px", fontSize: 13, color: "#555", background: "#f0f0f0", borderRadius: 2 },
 
   bottomBrowseSection: { width: 1000, margin: "0 auto 5rem", padding: "0 2rem", boxSizing: "border-box" },
-  btnBrowseAll: { width: "100%", padding: "14px", fontSize: 16, fontWeight: 600, color: "#1a1a1a", background: "#F2F2F2", border: "1px solid #ddd", borderRadius: 2, cursor: "pointer", transition: "all 0.2s" },
+  btnBrowseAll: { width: "100%", padding: "14px", fontSize: 16, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "1px dashed #E86F00", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
   allListWrapper: { background: "#fff", border: "1px solid #ede8e2", borderRadius: 2, padding: 24, marginTop: 10 },
   allListHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   allListTitle: { fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0 },
   btnCloseAll: { background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 },
-  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 },  
-  archiveCard: { padding: "16px 12px", background: "#fff", borderBottom: "1px solid #f0f0f0", cursor: "pointer", transition: "all 0.2s" },
+  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+  
+  archiveCard: { padding: 18, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
   archiveHeader: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#999", marginBottom: 6 },
   archiveIndustry: { fontSize: 14, fontWeight: 600, color: "#E86F00" },
   archiveDate: { fontSize: 14 },
-  archiveTitle: { fontSize: 18, fontWeight: 900, color: "#1a1a1a", marginBottom: 4 },
+  archiveTitle: { fontSize: 16, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 },
   archiveCompany: { fontSize: 15, color: "#666", marginBottom: 8 },
   archiveSummary: { fontSize: 14, color: "#666", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   btnLoadMore: { padding: "12px 80px", fontSize: 16, fontWeight: 600, color: "#fff", background: "#1a1a1a", border: "none", borderRadius: 2, cursor: "pointer", transition: "background 0.2s" },
 
-  panel: { position: "fixed", top: 0, right: 0, width: 460, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", paddingBottom: 100, overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column" },
+  panel: { position: "fixed", top: 0, right: 0, width: 400, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", paddingBottom: 100, overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column" },
   
-  panelHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  panelHeader: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 },
   panelTitle: { fontSize: 17, fontWeight: 600, color: "#1a1a1a", lineHeight: 1.4, flex: 1, marginRight: 8 },
   panelMeta: { fontSize: 14, color: "#999", marginBottom: 10 },
-  reasonBox: { background: "#F5F5F5", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
+  reasonBox: { background: "#FEF0E9", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
   reasonBoxWhite: { background: "#fff", border: "1px solid #f0f0f0", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
   reasonTitle: { fontSize: 15, fontWeight: 600, color: "#E86F00", marginBottom: 6 },
-  reasonTitleDark: { fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 6 },
-  reasonItem: { fontSize: 14, color: "#1a1a1a", marginBottom: 3, lineHeight: 1.6 },
+  reasonTitleDark: { fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 6 },
+  reasonItem: { fontSize: 14, color: "#666", marginBottom: 3, lineHeight: 1.6 },
   
   panelLink: { 
     width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
