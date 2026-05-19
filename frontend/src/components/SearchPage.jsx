@@ -40,6 +40,8 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [clearBtnHover, setClearBtnHover] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  const [browseHover, setBrowseHover] = useState(false);
+
   useEffect(() => {
     const fetchCases = async () => {
       try {
@@ -387,10 +389,13 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         {!showAllList ? (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <button 
-              style={styles.btnBrowseAll} 
+              style={{ ...styles.btnBrowseAll, background: browseHover ? "#E86F00" : "#F2F2F2", color: browseHover ? "#fff" : "#1a1a1a", border: browseHover ? "1px solid #E86F00" : "1px solid #ddd" }}
               onClick={() => setShowAllList(true)}
+              onMouseEnter={() => setBrowseHover(true)}
+              onMouseLeave={() => setBrowseHover(false)}
             >
-              DBR 전체 케이스 {allCases.length}개 펼쳐보기
+              {/* DBR 전체 케이스 {allCases.length}개 펼쳐보기 */}
+              DBR 전체 케이스 펼쳐보기
             </button>
           </div>
         ) : (
@@ -406,7 +411,8 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                   key={c.case_idx || c.id} 
                   style={{
                     ...styles.archiveCard,
-                    borderColor: selectedCases.find((s) => s.title === c.title) ? "#E86F00" : (selectedCase?.title === c.title ? "#f5b85a" : "#e8e8e8"),
+                    borderBottom: "1px solid #f0f0f0",
+                    borderLeft: selectedCase?.title === c.title ? "3px solid #E86F00" : "3px solid transparent",
                     background: selectedCases.find((s) => s.title === c.title) ? "#FEF0E9" : "#fff"
                   }}
                   onClick={() => setSelectedCase(c)}
@@ -616,7 +622,9 @@ function CaseItem({ item, isSelected, isViewing, onClick }) {
 
 function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClose }) {
   const [bookmarked, setBookmarked] = useState(false);
-
+  const [linkHover, setLinkHover] = useState(false); 
+  const [addHover, setAddHover] = useState(false);
+  
   useEffect(() => {
     const checkBookmark = () => {
       const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
@@ -652,7 +660,7 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
       <div style={styles.panelHeader}>
         <h3 style={styles.panelTitle}>{caseData.title}</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} onClick={toggleBookmark}>
+          <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", marginTop: 8 }} onClick={toggleBookmark}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
             </svg>
@@ -661,12 +669,12 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
         </div>
       </div>
       <p style={styles.panelMeta}>{caseData.company}</p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-        <span style={styles.caseTag}>케이스스터디</span>
-        <span style={styles.caseTag}>{caseData.industry}</span>
-        {caseData.date && <span style={styles.caseTag}>{caseData.date}</span>}
-        {caseData.prob_main && <span style={styles.caseTag}>{caseData.prob_main}</span>}
-        {caseData.sol_type && <span style={styles.caseTag}>{caseData.sol_type}</span>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12, alignItems: "center" }}>
+        <span style={{ fontSize: 14, color: "#E86F00" }}>케이스스터디</span>
+        {caseData.industry && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.industry}</span></>}
+        {caseData.date && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.date}</span></>}
+        {caseData.prob_main && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.prob_main}</span></>}
+        {caseData.sol_type && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.sol_type}</span></>}
       </div>
       
       <div style={{ flex: 1 }}>
@@ -691,7 +699,12 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-        <button style={styles.panelLink} onClick={openOriginalArticle}>
+        <button 
+          style={{ ...styles.panelLink, background: linkHover ? "#FEF0E9" : "#fff" }} 
+          onClick={openOriginalArticle}
+          onMouseEnter={() => setLinkHover(true)}
+          onMouseLeave={() => setLinkHover(false)}
+        >
           DBR 원문 아티클 읽기
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -702,11 +715,13 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
         <button
           style={{ 
             width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
-            color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : "#E86F00", 
+            color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : addHover ? "#C45E00" : "#E86F00", 
             border: "none", borderRadius: 2, cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed", 
             fontFamily: "inherit", transition: "all 0.2s" 
           }}
           onClick={onToggleSelect}
+          onMouseEnter={() => setAddHover(true)}
+          onMouseLeave={() => setAddHover(false)}
           disabled={!isSelected && selectedCases.length >= 3}
         >
           {isSelected ? "비교에서 제거" : "＋ 비교에 추가"}
@@ -815,32 +830,31 @@ const styles = {
   caseTag: { padding: "4px 10px", fontSize: 13, color: "#555", background: "#f0f0f0", borderRadius: 2 },
 
   bottomBrowseSection: { width: 1000, margin: "0 auto 5rem", padding: "0 2rem", boxSizing: "border-box" },
-  btnBrowseAll: { width: "100%", padding: "14px", fontSize: 16, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "1px dashed #E86F00", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
+  btnBrowseAll: { width: "100%", padding: "14px", fontSize: 16, fontWeight: 600, color: "#1a1a1a", background: "#F2F2F2", border: "1px solid #ddd", borderRadius: 2, cursor: "pointer", transition: "all 0.2s" },
   allListWrapper: { background: "#fff", border: "1px solid #ede8e2", borderRadius: 2, padding: 24, marginTop: 10 },
   allListHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   allListTitle: { fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0 },
   btnCloseAll: { background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 },
-  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
-  
-  archiveCard: { padding: 18, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
+  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 },  
+  archiveCard: { padding: "16px 12px", background: "#fff", borderBottom: "1px solid #f0f0f0", cursor: "pointer", transition: "all 0.2s" },
   archiveHeader: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#999", marginBottom: 6 },
   archiveIndustry: { fontSize: 14, fontWeight: 600, color: "#E86F00" },
   archiveDate: { fontSize: 14 },
-  archiveTitle: { fontSize: 16, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 },
+  archiveTitle: { fontSize: 18, fontWeight: 900, color: "#1a1a1a", marginBottom: 4 },
   archiveCompany: { fontSize: 15, color: "#666", marginBottom: 8 },
   archiveSummary: { fontSize: 14, color: "#666", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   btnLoadMore: { padding: "12px 80px", fontSize: 16, fontWeight: 600, color: "#fff", background: "#1a1a1a", border: "none", borderRadius: 2, cursor: "pointer", transition: "background 0.2s" },
 
-  panel: { position: "fixed", top: 0, right: 0, width: 400, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", paddingBottom: 100, overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column" },
+  panel: { position: "fixed", top: 0, right: 0, width: 460, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", paddingBottom: 100, overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column" },
   
-  panelHeader: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 },
+  panelHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   panelTitle: { fontSize: 17, fontWeight: 600, color: "#1a1a1a", lineHeight: 1.4, flex: 1, marginRight: 8 },
   panelMeta: { fontSize: 14, color: "#999", marginBottom: 10 },
-  reasonBox: { background: "#FEF0E9", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
+  reasonBox: { background: "#F5F5F5", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
   reasonBoxWhite: { background: "#fff", border: "1px solid #f0f0f0", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
   reasonTitle: { fontSize: 15, fontWeight: 600, color: "#E86F00", marginBottom: 6 },
-  reasonTitleDark: { fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 6 },
-  reasonItem: { fontSize: 14, color: "#666", marginBottom: 3, lineHeight: 1.6 },
+  reasonTitleDark: { fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 6 },
+  reasonItem: { fontSize: 14, color: "#1a1a1a", marginBottom: 3, lineHeight: 1.6 },
   
   panelLink: { 
     width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
