@@ -55,9 +55,9 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           throw new Error("케이스 데이터 형식이 올바르지 않습니다.");
         }
 
-        const mappedCases = json.data.map((item, index) => ({
+        const mappedCases = json.data.map((item) => ({
           id: item.case_idx,
-          rank: index + 1,
+          rank: null,
           case_idx: item.case_idx,
           title: item.title,
           company: item.comp_name,
@@ -85,7 +85,12 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           created_at: item.created_at,
         }));
 
-        setAllCases(mappedCases);
+        const sorted = [...mappedCases].sort((a, b) => (b.pub_year || 0) - (a.pub_year || 0));
+        sorted.forEach((item, index) => { item.rank = index + 1; });
+
+        setAllCases(sorted);
+
+        setAllCases([...mappedCases].sort((a, b) => (b.pub_year || 0) - (a.pub_year || 0)));
       } catch (error) {
         console.error("케이스 데이터 로딩 실패:", error);
         setCaseLoadError(error.message);
@@ -177,7 +182,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     );
   };
 
-  const cases = result ? result.cases : allCases.slice(0, 5);
+  const cases = result ? result.cases : allCases.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }));
   const isSearchDisabled = loading || (!query.trim() && !selectedIndustry && !selectedCategory);
 
   const recommendedCaseIds = result?.cases
@@ -423,7 +428,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                   style={styles.btnLoadMore} 
                   onClick={() => setVisibleCount(prev => prev + 10)}
                 >
-                  케이스 10개 더보기 (+{allCases.length - visibleCount}개 남음)
+                  더보기
                 </button>
               </div>
             )}
@@ -577,26 +582,28 @@ function CaseItem({ item, isSelected, isViewing, onClick }) {
     e.stopPropagation();
     const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
     const isAlreadyBookmarked = prev.some((b) => b.title === item.title);
-    
-    const updated = isAlreadyBookmarked 
-      ? prev.filter((b) => b.title !== item.title) 
+    const updated = isAlreadyBookmarked
+      ? prev.filter((b) => b.title !== item.title)
       : [...prev, item];
-      
     localStorage.setItem("bookmarks", JSON.stringify(updated));
     setBookmarked(!isAlreadyBookmarked);
     window.dispatchEvent(new Event("bookmarkUpdated"));
   };
 
   return (
-    <div style={{ ...styles.caseItem, borderColor: isSelected ? "#E86F00" : (isViewing ? "#f5b85a" : "#e8e8e8"), background: isSelected ? "#FEF0E9" : "#fff" }} onClick={onClick}>
+    <div
+      style={{ ...styles.caseItem, border: isViewing ? "2px solid #E86F00" : "1px solid transparent", borderBottom: isViewing ? "2px solid #E86F00" : "1px solid #f0f0f0", background: isViewing ? "linear-gradient(135deg, #fff 60%, #FEF0E9 100%)" : isSelected ? "#FEF0E9" : "#fff" }}
+      onClick={onClick}
+    >
       <div style={{ ...styles.caseRank, color: item.rank <= 3 ? "#E86F00" : "#aaaaaa" }}>{item.rank}</div>
       <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
+          <span style={{ fontSize: 13, color: "#E86F00" }}>케이스스터디</span>
+          <span style={{ fontSize: 13, color: "#E86F00" }}>|</span>
+          <span style={{ fontSize: 13, color: "#E86F00" }}>{item.industry}</span>
+        </div>
         <p style={styles.caseTitle}>{item.title}</p>
         <p style={styles.caseMeta}>{item.company}</p>
-        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-          <span style={{ ...styles.caseTag, background: isSelected ? "#FAD5C3" : "#f0f0f0", color: isSelected ? "#E86F00" : "#555" }}>케이스스터디</span>
-          <span style={{ ...styles.caseTag, background: isSelected ? "#FAD5C3" : "#f0f0f0", color: isSelected ? "#E86F00" : "#555" }}>{item.industry}</span>
-        </div>
       </div>
       <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, flexShrink: 0 }} onClick={toggleBookmark}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -696,7 +703,7 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
           style={{ 
             width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
             color: "#fff", background: isSelected ? "#1a1a1a" : selectedCases.length >= 3 && !isSelected ? "#ccc" : "#E86F00", 
-            border: "none", borderRadius: 8, cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed", 
+            border: "none", borderRadius: 2, cursor: isSelected || selectedCases.length < 3 ? "pointer" : "not-allowed", 
             fontFamily: "inherit", transition: "all 0.2s" 
           }}
           onClick={onToggleSelect}
@@ -801,11 +808,11 @@ const styles = {
   tagSectionLabel: { fontSize: 12, color: "#999", marginBottom: 8, fontWeight: 500 },
   tag: { padding: "4px 10px", fontSize: 13, borderRadius: 4, fontWeight: 500 },
   
-  caseItem: { display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 12px", border: "none", borderBottom: "1px solid #f0f0f0", borderRadius: 0, cursor: "pointer", transition: "all 0.2s" },
+  caseItem: { display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 12px", border: "1px solid transparent", borderBottom: "1px solid #f0f0f0", borderRadius: 2, cursor: "pointer", transition: "all 0.2s" },
   caseRank: { width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, flexShrink: 0, color: "#1a1a1a" },
-  caseTitle: { fontSize: 16, fontWeight: 500, color: "#1a1a1a", marginBottom: 3 },
-  caseMeta: { fontSize: 14, color: "#999" },
-  caseTag: { padding: "4px 10px", fontSize: 14, color: "#555", background: "#f0f0f0", borderRadius: 2 },
+  caseTitle: { fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 3 },
+  caseMeta: { fontSize: 13, color: "#999" },
+  caseTag: { padding: "4px 10px", fontSize: 13, color: "#555", background: "#f0f0f0", borderRadius: 2 },
 
   bottomBrowseSection: { width: 1000, margin: "0 auto 5rem", padding: "0 2rem", boxSizing: "border-box" },
   btnBrowseAll: { width: "100%", padding: "14px", fontSize: 16, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "1px dashed #E86F00", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
@@ -816,13 +823,13 @@ const styles = {
   allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
   
   archiveCard: { padding: 18, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 8, cursor: "pointer", transition: "all 0.2s" },
-  archiveHeader: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#999", marginBottom: 6 },
-  archiveIndustry: { fontWeight: 600, color: "#E86F00" },
-  archiveDate: {},
-  archiveTitle: { fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 },
-  archiveCompany: { fontSize: 13, color: "#666", marginBottom: 8 },
-  archiveSummary: { fontSize: 13, color: "#666", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
-  btnLoadMore: { padding: "12px 30px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#1a1a1a", border: "none", borderRadius: 2, cursor: "pointer", transition: "background 0.2s" },
+  archiveHeader: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#999", marginBottom: 6 },
+  archiveIndustry: { fontSize: 14, fontWeight: 600, color: "#E86F00" },
+  archiveDate: { fontSize: 14 },
+  archiveTitle: { fontSize: 16, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 },
+  archiveCompany: { fontSize: 15, color: "#666", marginBottom: 8 },
+  archiveSummary: { fontSize: 14, color: "#666", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  btnLoadMore: { padding: "12px 80px", fontSize: 16, fontWeight: 600, color: "#fff", background: "#1a1a1a", border: "none", borderRadius: 2, cursor: "pointer", transition: "background 0.2s" },
 
   panel: { position: "fixed", top: 0, right: 0, width: 400, height: "100vh", background: "#fff", borderLeft: "1px solid #e8e8e8", padding: "1.5rem", paddingBottom: 100, overflowY: "auto", zIndex: 200, boxSizing: "border-box", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column" },
   
@@ -831,14 +838,14 @@ const styles = {
   panelMeta: { fontSize: 14, color: "#999", marginBottom: 10 },
   reasonBox: { background: "#FEF0E9", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
   reasonBoxWhite: { background: "#fff", border: "1px solid #f0f0f0", borderRadius: 2, padding: "12px 14px", marginBottom: 14 },
-  reasonTitle: { fontSize: 15, fontWeight: 500, color: "#E86F00", marginBottom: 6 },
+  reasonTitle: { fontSize: 15, fontWeight: 600, color: "#E86F00", marginBottom: 6 },
   reasonTitleDark: { fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 6 },
   reasonItem: { fontSize: 14, color: "#666", marginBottom: 3, lineHeight: 1.6 },
   
   panelLink: { 
     width: "100%", padding: "12px", fontSize: 14, fontWeight: 600, 
     color: "#E86F00", background: "#fff", border: "1px solid #E86F00", 
-    borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+    borderRadius: 2, cursor: "pointer", fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
     transition: "all 0.2s"
   },
