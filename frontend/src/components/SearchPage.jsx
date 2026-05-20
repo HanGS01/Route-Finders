@@ -1016,7 +1016,7 @@ const styles = {
     borderRadius: 2, cursor: "pointer", fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
     transition: "all 0.2s"
-  },
+  }, 
   
   bottomBar: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#1a1a1a", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 300 },
   bottomBarText: { fontSize: 15, color: "#fff" },
