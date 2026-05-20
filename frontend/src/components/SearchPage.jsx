@@ -15,6 +15,30 @@ const KEYWORDS = {
 
 const SYSTEM_PROMPT = `당신은 DBR(동아비즈니스리뷰) 케이스 아틀라스 서비스의 AI 분석 엔진입니다.`;
 
+const getStatusLabel = (status) => {
+  const statusMap = {
+    DIRECT_MATCH: "딱 맞는 사례를 찾았어요",
+    CLOSE_MATCH: "꽤 가까운 사례를 찾았어요",
+    ALTERNATIVE_MATCH: "참고할 만한 대체 사례예요",
+    LOW_MATCH: "조금 더 구체적인 설명이 필요해요",
+    NO_RESULT: "아직 맞는 사례를 찾지 못했어요",
+  };
+
+  return statusMap[status] || "추천 결과";
+};
+
+const getStatusMessage = (status, defaultMessage) => {
+  const messageMap = {
+    DIRECT_MATCH: "입력한 고민과 잘 맞는 DBR 케이스를 찾았어요.",
+    CLOSE_MATCH: "완전히 같지는 않지만, 문제 상황과 해결 방향이 꽤 비슷한 사례예요.",
+    ALTERNATIVE_MATCH: "정확히 같은 사례는 부족하지만, 고민의 일부 조건과 연결되는 참고 사례를 보여드릴게요.",
+    LOW_MATCH: "지금 입력만으로는 딱 맞는 사례를 찾기 어려워요. 산업, 문제 상황, 원하는 해결 방향을 조금 더 적어보세요.",
+    NO_RESULT: "조건에 맞는 추천 결과를 찾지 못했어요. 검색어를 조금 다르게 입력해보세요.",
+  };
+
+  return messageMap[status] || defaultMessage || "";
+};
+
 export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -430,6 +454,21 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             </div>
 
             <hr style={{ border: "none", borderTop: "2px solid #E86F00", margin: "0 0 12px 0" }} />
+
+            {result?.result_status && (
+              <div style={styles.recommendStatusBox}>
+                <p style={styles.recommendStatusTitle}>
+                  {getStatusLabel(result.result_status.status)}
+                </p>
+                <p style={styles.recommendStatusMessage}>
+                  {getStatusMessage(
+                    result.result_status.status,
+                    result.result_status.message
+                  )}
+                </p>
+              </div>
+            )}
+
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {cases.map((c) => (
                 <CaseItem
@@ -764,6 +803,13 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
       </div>
       
       <div style={{ flex: 1 }}>
+        {caseData.reco_reason && (
+          <div style={styles.reasonBox}>
+            <p style={styles.reasonTitle}>[ AI 추천 이유 ]</p>
+            <p style={styles.reasonItem}>→ {caseData.reco_reason}</p>
+          </div>
+        )}
+
         <div style={styles.reasonBox}>
           <p style={styles.reasonTitle}>[ 상세 요약 및 전략 ]</p>
           <p style={styles.reasonItem}>→ {caseData.summary}</p>
@@ -900,6 +946,28 @@ const styles = {
   loadingText: { fontSize: 14, color: "#999" },
   dot: { width: 6, height: 6, borderRadius: "50%", background: "#E86F00", animation: "pulse 1.2s ease-in-out infinite" },
   errorText: { fontSize: 14, color: "#A32D2D", padding: "0.5rem 0" },
+
+  recommendStatusBox: {
+    background: "#FEF0E0",
+    border: "1px solid #F4C28A",
+    borderRadius: 8,
+    padding: "12px 14px",
+    marginBottom: 12,
+  },
+
+  recommendStatusTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#E86F00",
+    marginBottom: 4,
+  },
+
+  recommendStatusMessage: {
+    fontSize: 13,
+    color: "#555",
+    lineHeight: 1.5,
+    margin: 0,
+  },
 
   infoBtn: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "none", borderRadius: 20, cursor: "pointer", transition: "background 0.2s" },
   card: { background: "#fff", border: "0.5px solid #fff", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: 12 },
