@@ -604,9 +604,9 @@ function CaseItem({ item, isSelected, isViewing, onClick }) {
       <div style={{ ...styles.caseRank, color: item.rank <= 3 ? "#E86F00" : "#aaaaaa" }}>{item.rank}</div>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: "#E86F00" }}>케이스스터디</span>
-          <span style={{ fontSize: 13, color: "#E86F00" }}>|</span>
-          <span style={{ fontSize: 13, color: "#E86F00" }}>{item.industry}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#E86F00" }}>케이스스터디</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#E86F00" }}>|</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#E86F00" }}>{item.industry}</span>
         </div>
         <p style={styles.caseTitle}>{item.title}</p>
         <p style={styles.caseMeta}>{item.company}</p>
@@ -670,16 +670,16 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
       </div>
       <p style={styles.panelMeta}>{caseData.company}</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12, alignItems: "center" }}>
-        <span style={{ fontSize: 14, color: "#E86F00" }}>케이스스터디</span>
-        {caseData.industry && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.industry}</span></>}
-        {caseData.date && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.date}</span></>}
-        {caseData.prob_main && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.prob_main}</span></>}
-        {caseData.sol_type && <><span style={{ fontSize: 14, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, color: "#E86F00" }}>{caseData.sol_type}</span></>}
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>케이스스터디</span>
+        {caseData.industry && <><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>{caseData.industry}</span></>}
+        {caseData.date && <><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>{caseData.date}</span></>}
+        {caseData.prob_main && <><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>{caseData.prob_main}</span></>}
+        {caseData.sol_type && <><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>|</span><span style={{ fontSize: 14, fontWeight: 600, color: "#E86F00" }}>{caseData.sol_type}</span></>}
       </div>
       
       <div style={{ flex: 1 }}>
         <div style={styles.reasonBox}>
-          <p style={styles.reasonTitle}>상세 요약 및 전략</p>
+          <p style={styles.reasonTitle}>[ 상세 요약 및 전략 ]</p>
           <p style={styles.reasonItem}>→ {caseData.summary}</p>
         </div>
 
@@ -825,7 +825,7 @@ const styles = {
   
   caseItem: { display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 12px", border: "1px solid transparent", borderBottom: "1px solid #f0f0f0", borderRadius: 2, cursor: "pointer", transition: "all 0.2s" },
   caseRank: { width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, flexShrink: 0, color: "#1a1a1a" },
-  caseTitle: { fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 3 },
+  caseTitle: { fontSize: 15, fontWeight: 700, color: "#1a1a1a", marginBottom: 3 },
   caseMeta: { fontSize: 13, color: "#999" },
   caseTag: { padding: "4px 10px", fontSize: 13, color: "#555", background: "#f0f0f0", borderRadius: 2 },
 
