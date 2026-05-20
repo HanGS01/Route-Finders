@@ -104,7 +104,7 @@ export default function CaseMap({
     problem: "중앙",
     strategy: "중앙",
   });
-  const [dimensions, setDimensions] = useState({ width: 820, height: 540 });
+  const [dimensions, setDimensions] = useState({ width: 1000, height: 700 });
 
   useEffect(() => {
     onCaseClickRef.current = onCaseClick;
@@ -120,7 +120,7 @@ export default function CaseMap({
 
       setDimensions({
         width,
-        height: Math.min(580, Math.max(430, width * 0.7)),
+        height: 700,
       });
     });
 
@@ -138,7 +138,7 @@ export default function CaseMap({
       top: 28,
       right: 28,
       bottom: 58,
-      left: 82,
+      left: 110,
     };
 
     const innerW = width - margin.left - margin.right;
@@ -245,7 +245,7 @@ export default function CaseMap({
         .attr("x", xScale(item.value))
         .attr("y", innerH + 24)
         .attr("text-anchor", "middle")
-        .attr("font-size", 12)
+        .attr("font-size", 14)
         .attr("font-weight", 700)
         .attr("fill", getProblemColor(item.key))
         .text(item.key);
@@ -267,7 +267,7 @@ export default function CaseMap({
         .attr("x", -12)
         .attr("y", yScale(item.value) + 4)
         .attr("text-anchor", "end")
-        .attr("font-size", 10)
+        .attr("font-size", 14)
         .attr("font-weight", 500)
         .attr("fill", "#666")
         .text(item.short);
@@ -278,7 +278,7 @@ export default function CaseMap({
       .attr("x", innerW / 2)
       .attr("y", innerH + 48)
       .attr("text-anchor", "middle")
-      .attr("font-size", 11)
+      .attr("font-size", 12)
       .attr("fill", "#aaa")
       .text("X축: 문제 유형");
 
@@ -286,7 +286,7 @@ export default function CaseMap({
       .append("text")
       .attr("transform", `translate(${-62}, ${innerH / 2}) rotate(-90)`)
       .attr("text-anchor", "middle")
-      .attr("font-size", 11)
+      .attr("font-size", 12)
       .attr("fill", "#aaa")
       .text("Y축: 전략 유형");
 
@@ -645,21 +645,21 @@ const styles = {
     right: 14,
     background: "rgba(255,255,255,0.92)",
     border: "0.5px solid #e0e0e0",
-    borderRadius: 8,
-    padding: "8px 11px",
+    borderRadius: 6,
+    padding: "2px 6px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
     zIndex: 20,
     pointerEvents: "none",
   },
   areaLabel: {
     display: "block",
-    fontSize: 10,
+    fontSize: 12,
     color: "#aaa",
     marginBottom: 2,
   },
   areaValue: {
     display: "block",
-    fontSize: 12,
+    fontSize: 14,
     color: "#333",
     fontWeight: 700,
   },
@@ -714,8 +714,8 @@ const styles = {
     zIndex: 20,
   },
   zoomBtn: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     border: "none",
     background: "transparent",
     color: "#444",
@@ -725,14 +725,14 @@ const styles = {
     lineHeight: 1,
   },
   zoomLevel: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#aaa",
   },
   zoomHint: {
     position: "absolute",
     left: 14,
     bottom: 12,
-    fontSize: 10,
+    fontSize: 12,
     color: "#bbb",
     pointerEvents: "none",
   },
