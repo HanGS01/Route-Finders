@@ -42,6 +42,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [hasSearched, setHasSearched] = useState(false);
 
   const [browseHover, setBrowseHover] = useState(false);
+  const [showSelectedList, setShowSelectedList] = useState(false);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -532,13 +533,32 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         />
       )}
       {selectedCases.length > 0 && (
-        <div style={styles.bottomBar}>
-          <span style={styles.bottomBarText}>
-            {selectedCases.length}개의 케이스가 선택되었습니다 ({selectedCases.length}/3)
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={styles.bottomBarBtnOutline} onClick={() => { setShowCompare(true); setSelectedCase(null); }}>케이스 비교하기</button>
-            <button style={styles.bottomBarBtnFill}>내보내기</button>
+        <div style={{ ...styles.bottomBar, flexDirection: "column", padding: 0 }}>
+          {showSelectedList && (
+            <div style={{ width: "100%", background: "#2a2a2a", padding: "12px 24px", display: "flex", gap: 16, borderBottom: "1px solid #444" }}>
+              {selectedCases.map((c, i) => (
+                <div key={c.title} style={{ display: "flex", alignItems: "center", gap: 8, background: "#3a3a3a", padding: "8px 12px", borderRadius: 2, flex: 1 }}
+                onClick={() => setSelectedCase(c)}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#E86F00" }}>{i + 1}</span>
+                  <span style={{ fontSize: 13, color: "#fff", flex: 1 }}>{c.title.length > 25 ? c.title.slice(0, 25) + "..." : c.title}</span>
+                  <span style={{ fontSize: 12, color: "#999" }}>{c.company}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", width: "100%", boxSizing: "border-box" }}>
+            <span 
+              style={{ ...styles.bottomBarText, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+              onClick={() => setShowSelectedList(prev => !prev)}
+            >
+              {selectedCases.length}개의 케이스가 선택되었습니다 ({selectedCases.length}/3)
+              <span style={{ fontSize: 12, color: "#999" }}>{showSelectedList ? "▼" : "▲"} 목록 보기</span>
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={styles.bottomBarBtnOutline} onClick={() => { setShowCompare(true); setSelectedCase(null); }}>케이스 비교하기</button>
+              <button style={styles.bottomBarBtnFill}>내보내기</button>
+            </div>
           </div>
         </div>
       )}
