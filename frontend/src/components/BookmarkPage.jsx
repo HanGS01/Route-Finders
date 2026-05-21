@@ -1,37 +1,134 @@
 import { useState, useEffect } from "react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
 export default function BookmarkPage({ onBack }) {
   const [bookmarks, setBookmarks] = useState([]);
   const [summaryCase, setSummaryCase] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadBookmarks = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setBookmarks([]);
+      setError("북마크는 로그인 후 이용할 수 있습니다.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bookmarks`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "북마크 목록을 불러오지 못했습니다.");
+      }
+
+      const mappedBookmarks = (data.data || []).map((item) => ({
+        bookmark_idx: item.bookmark_idx,
+        id: item.case_idx,
+        case_idx: item.case_idx,
+        title: item.title,
+        company: item.comp_name,
+        comp_name: item.comp_name,
+        industry: item.industry,
+        date: item.pub_year ? `${item.pub_year}년` : "",
+        summary: item.summary,
+        src_url: item.src_url,
+
+        chapter_title: item.chapter_title,
+        issue_no: item.issue_no,
+        pub_year: item.pub_year,
+        comp_size: item.comp_size,
+        prob_main: item.prob_main,
+        prob_keyword: item.prob_keyword,
+        prob_def: item.prob_def,
+        sol_type: item.sol_type,
+        sol_detail: item.sol_detail,
+        perf_type: item.perf_type,
+        perf_dir: item.perf_dir,
+        x: item.x,
+        y: item.y,
+        bookmarked_at: item.bookmarked_at,
+      }));
+
+      setBookmarks(mappedBookmarks);
+    } catch (error) {
+      console.error("북마크 목록 조회 실패:", error);
+      setError(error.message || "북마크 목록 조회 중 오류가 발생했습니다.");
+      setBookmarks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadBookmarks = () => {
-      setBookmarks(JSON.parse(localStorage.getItem("bookmarks") || "[]"));
-    };
-
     loadBookmarks();
 
-    window.addEventListener("bookmarkUpdated", loadBookmarks);
-    return () => window.removeEventListener("bookmarkUpdated", loadBookmarks);
+    const handleUpdate = () => {
+      loadBookmarks();
+    };
+
+    window.addEventListener("bookmarkUpdated", handleUpdate);
+    return () => window.removeEventListener("bookmarkUpdated", handleUpdate);
   }, []);
 
   const getBookmarkKey = (bookmark) => {
-    return bookmark.case_idx || bookmark.id || bookmark.rank || bookmark.title;
+    return bookmark.case_idx || bookmark.id || bookmark.bookmark_idx || bookmark.title;
   };
 
-  const removeBookmark = (targetBookmark) => {
-    const targetKey = getBookmarkKey(targetBookmark);
+  const removeBookmark = async (targetBookmark) => {
+    const token = localStorage.getItem("token");
+    const caseIdx = targetBookmark.case_idx || targetBookmark.id;
 
-    const updated = bookmarks.filter((bookmark) => {
-      return getBookmarkKey(bookmark) !== targetKey;
-    });
+    if (!token) {
+      alert("북마크는 로그인 후 이용할 수 있습니다.");
+      return;
+    }
 
-    localStorage.setItem("bookmarks", JSON.stringify(updated));
-    setBookmarks(updated);
-    window.dispatchEvent(new Event("bookmarkUpdated"));
+    if (!caseIdx) {
+      alert("삭제할 케이스 정보를 찾지 못했습니다.");
+      return;
+    }
 
-    if (summaryCase && getBookmarkKey(summaryCase) === targetKey) {
-      setSummaryCase(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bookmarks/${caseIdx}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "북마크 삭제에 실패했습니다.");
+      }
+
+      const targetKey = getBookmarkKey(targetBookmark);
+
+      setBookmarks((prev) =>
+        prev.filter((bookmark) => getBookmarkKey(bookmark) !== targetKey)
+      );
+
+      if (summaryCase && getBookmarkKey(summaryCase) === targetKey) {
+        setSummaryCase(null);
+      }
+
+      window.dispatchEvent(new Event("bookmarkUpdated"));
+    } catch (error) {
+      console.error("북마크 삭제 실패:", error);
+      alert(error.message || "북마크 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -65,7 +162,36 @@ export default function BookmarkPage({ onBack }) {
         </button>
       </div>
 
-      {bookmarks.length === 0 ? (
+      {loading ? (
+        <div style={styles.empty}>
+          <p style={styles.emptyText}>북마크를 불러오는 중이에요</p>
+          <p style={styles.emptySubText}>잠시만 기다려주세요.</p>
+        </div>
+      ) : error ? (
+        <div style={styles.empty}>
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ddd"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+
+          <p style={styles.emptyText}>{error}</p>
+          <p style={styles.emptySubText}>
+            로그인 후 다시 이용해주세요.
+          </p>
+
+          <button style={styles.goSearchBtn} onClick={onBack}>
+            케이스 탐색으로 돌아가기
+          </button>
+        </div>
+      ) : bookmarks.length === 0 ? (
         <div style={styles.empty}>
           <svg
             width="48"
@@ -167,6 +293,7 @@ export default function BookmarkPage({ onBack }) {
     </div>
   );
 }
+
 function formatSummaryParagraphs(summary) {
   if (!summary) return ["등록된 요약문이 없습니다."];
 
@@ -191,7 +318,6 @@ function formatSummaryParagraphs(summary) {
 
   return paragraphs;
 }
-
 
 function SummaryModal({ caseData, onClose, onOpenOriginal }) {
   return (
@@ -298,6 +424,7 @@ const styles = {
     fontWeight: 700,
     color: "#777",
     margin: 0,
+    textAlign: "center",
   },
 
   emptySubText: {
@@ -503,21 +630,13 @@ const styles = {
     overflowY: "auto",
   },
 
-  summaryText: {
+  summaryParagraph: {
     fontSize: 15,
     color: "#333",
-    lineHeight: 1.85,
-    margin: 0,
-    whiteSpace: "pre-line",
-  },
-
-  summaryParagraph: {
-  fontSize: 15,
-  color: "#333",
-  lineHeight: 1.9,
-  margin: "0 0 18px",
-  letterSpacing: "-0.01em",
-  wordBreak: "keep-all",
+    lineHeight: 1.9,
+    margin: "0 0 18px",
+    letterSpacing: "-0.01em",
+    wordBreak: "keep-all",
   },
 
   modalFooter: {

@@ -50,6 +50,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [popularCases, setPopularCases] = useState([]);
   const [popularLoading, setPopularLoading] = useState(false);
   const [popularError, setPopularError] = useState(null);
+  const [bookmarkedCaseIds, setBookmarkedCaseIds] = useState(new Set());
 
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -187,6 +188,109 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
     fetchPopularCases();
   }, []);
+
+  const loadBookmarkedCaseIds = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setBookmarkedCaseIds(new Set());
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bookmarks`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !Array.isArray(data.data)) {
+        setBookmarkedCaseIds(new Set());
+        return;
+      }
+
+      const nextIds = new Set(
+        data.data
+          .map((item) => String(item.case_idx))
+          .filter(Boolean)
+      );
+
+      setBookmarkedCaseIds(nextIds);
+    } catch (error) {
+      console.error("북마크 목록 확인 실패:", error);
+      setBookmarkedCaseIds(new Set());
+    }
+  };
+
+  useEffect(() => {
+    loadBookmarkedCaseIds();
+
+    const handleBookmarkUpdated = () => {
+      loadBookmarkedCaseIds();
+    };
+
+    window.addEventListener("bookmarkUpdated", handleBookmarkUpdated);
+    window.addEventListener("storage", handleBookmarkUpdated);
+
+    return () => {
+      window.removeEventListener("bookmarkUpdated", handleBookmarkUpdated);
+      window.removeEventListener("storage", handleBookmarkUpdated);
+    };
+  }, []);
+
+  const handleToggleBookmark = async (caseData) => {
+    const token = localStorage.getItem("token");
+    const caseIdx = caseData?.case_idx || caseData?.id;
+
+    if (!token) {
+      alert("북마크는 로그인 후 이용할 수 있습니다.");
+      return;
+    }
+
+    if (!caseIdx) {
+      alert("북마크할 케이스 정보를 찾지 못했습니다.");
+      return;
+    }
+
+    const caseKey = String(caseIdx);
+    const isAlreadyBookmarked = bookmarkedCaseIds.has(caseKey);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bookmarks/${caseIdx}`, {
+        method: isAlreadyBookmarked ? "DELETE" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "북마크 처리에 실패했습니다.");
+      }
+
+      setBookmarkedCaseIds((prev) => {
+        const next = new Set(prev);
+
+        if (isAlreadyBookmarked) {
+          next.delete(caseKey);
+        } else {
+          next.add(caseKey);
+        }
+
+        return next;
+      });
+
+      window.dispatchEvent(new Event("bookmarkUpdated"));
+    } catch (error) {
+      console.error("북마크 처리 실패:", error);
+      alert(error.message || "북마크 처리 중 오류가 발생했습니다.");
+    }
+  };
+
 
   const handleSearch = async () => {
     const filters = [selectedIndustry, selectedCategory, selectedKeyword]
@@ -585,7 +689,9 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                   item={c}
                   isSelected={!!selectedCases.find((s) => s.title === c.title)}
                   isViewing={selectedCase?.title === c.title}
+                  isBookmarked={bookmarkedCaseIds.has(String(c.case_idx ?? c.id))}
                   onClick={() => handleCaseSelect(c, result ? "recommend" : "archive")}
+                  onToggleBookmark={() => handleToggleBookmark(c)}
                   onRemove={() => setSelectedCases(prev => prev.filter(s => s.title !== c.title))}
                   onAdd={() => setSelectedCases(prev => prev.length < 3 ? [...prev, c] : prev)}
                 />
@@ -635,7 +741,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                 >
                   <div style={styles.archiveHeader}>
                     <span style={styles.archiveIndustry}>{c.industry}</span>
-                    <span style={styles.archiveDate}>{c.date}</span>
+                    <span style={styles.archiveDate}>발행 연도 : {c.date}</span>
                   </div>
                   <div style={styles.archiveTitle}>{c.title}</div>
                   <div style={styles.archiveCompany}>{c.company}</div>
@@ -671,6 +777,8 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           selectedCases={selectedCases}
           onToggleSelect={() => toggleSelectCase(selectedCase)}
           isSelected={!!selectedCases.find((s) => s.title === selectedCase.title)}
+          isBookmarked={bookmarkedCaseIds.has(String(selectedCase.case_idx ?? selectedCase.id))}
+          onToggleBookmark={() => handleToggleBookmark(selectedCase)}
           onClose={() => setSelectedCase(null)}
         />
       )}
@@ -886,29 +994,10 @@ function TagSection({ label, tags, color }) {
   );
 }
 
-function CaseItem({ item, isSelected, isViewing, onClick, onRemove, onAdd }) {
-  const [bookmarked, setBookmarked] = useState(false);
-
-  useEffect(() => {
-    const checkBookmark = () => {
-      const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
-      setBookmarked(prev.some((b) => b.title === item.title));
-    };
-    checkBookmark();
-    window.addEventListener("bookmarkUpdated", checkBookmark);
-    return () => window.removeEventListener("bookmarkUpdated", checkBookmark);
-  }, [item.title]);
-
+function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onToggleBookmark, onRemove, onAdd }) {
   const toggleBookmark = (e) => {
     e.stopPropagation();
-    const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
-    const isAlreadyBookmarked = prev.some((b) => b.title === item.title);
-    const updated = isAlreadyBookmarked
-      ? prev.filter((b) => b.title !== item.title)
-      : [...prev, item];
-    localStorage.setItem("bookmarks", JSON.stringify(updated));
-    setBookmarked(!isAlreadyBookmarked);
-    window.dispatchEvent(new Event("bookmarkUpdated"));
+    onToggleBookmark?.();
   };
 
   return (
@@ -927,7 +1016,7 @@ function CaseItem({ item, isSelected, isViewing, onClick, onRemove, onAdd }) {
         <p style={styles.caseMeta}>{item.company}</p>
       </div>
       <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, flexShrink: 0 }} onClick={toggleBookmark}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill={isBookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
         </svg>
       </button>
@@ -947,33 +1036,13 @@ function CaseItem({ item, isSelected, isViewing, onClick, onRemove, onAdd }) {
   );
 }
 
-function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClose }) {
-  const [bookmarked, setBookmarked] = useState(false);
+function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggleSelect, onToggleBookmark, onClose }) {
   const [linkHover, setLinkHover] = useState(false); 
   const [addHover, setAddHover] = useState(false);
-  
-  useEffect(() => {
-    const checkBookmark = () => {
-      const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
-      setBookmarked(prev.some((b) => b.title === caseData.title));
-    };
-    checkBookmark();
-    window.addEventListener("bookmarkUpdated", checkBookmark);
-    return () => window.removeEventListener("bookmarkUpdated", checkBookmark);
-  }, [caseData.title]);
 
   const toggleBookmark = (e) => {
     e.stopPropagation();
-    const prev = JSON.parse(localStorage.getItem("bookmarks") || "[]");
-    const isAlreadyBookmarked = prev.some((b) => b.title === caseData.title);
-    
-    const updated = isAlreadyBookmarked 
-      ? prev.filter((b) => b.title !== caseData.title) 
-      : [...prev, caseData];
-      
-    localStorage.setItem("bookmarks", JSON.stringify(updated));
-    setBookmarked(!isAlreadyBookmarked);
-    window.dispatchEvent(new Event("bookmarkUpdated"));
+    onToggleBookmark?.();
   };
 
   const openOriginalArticle = () => {
@@ -988,7 +1057,7 @@ function CasePanel({ caseData, selectedCases, isSelected, onToggleSelect, onClos
         <h3 style={styles.panelTitle}>{caseData.title}</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", marginTop: 8 }} onClick={toggleBookmark}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill={bookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill={isBookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
             </svg>
           </button>

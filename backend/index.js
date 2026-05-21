@@ -8,6 +8,8 @@ const { router: authRouter } = require("./routes/auth");
 const logsRouter = require("./routes/logs");
 const popularRouter = require("./routes/popular");
 
+const bookmarksRouter = require("./routes/bookmarks");
+
 require("dotenv").config();
 
 const app = express();
@@ -25,6 +27,8 @@ app.use("/api/auth", authRouter);
 
 app.use("/api/logs", logsRouter);
 app.use("/api/popular", popularRouter);
+
+app.use("/api/bookmarks", bookmarksRouter);
 
 app.get("/", (req, res) => {
   res.send("Backend server is running");

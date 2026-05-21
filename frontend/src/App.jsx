@@ -14,6 +14,36 @@ function App() {
   const [member, setMember] = useState(null);
   const [bookmarkCount, setBookmarkCount] = useState(0);
 
+  const fetchBookmarkCount = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setBookmarkCount(0);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bookmarks`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setBookmarkCount(0);
+        return;
+      }
+
+      setBookmarkCount(Array.isArray(data.data) ? data.data.length : 0);
+    } catch (error) {
+      console.error("북마크 개수 조회 실패:", error);
+      setBookmarkCount(0);
+    }
+  };
+
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     const savedMember = localStorage.getItem("member");
@@ -26,7 +56,10 @@ function App() {
       }
     }
 
-    if (!savedToken) return;
+    if (!savedToken) {
+      setBookmarkCount(0);
+      return;
+    }
 
     const checkLogin = async () => {
       try {
@@ -43,16 +76,19 @@ function App() {
           localStorage.removeItem("token");
           localStorage.removeItem("member");
           setMember(null);
+          setBookmarkCount(0);
           return;
         }
 
         localStorage.setItem("member", JSON.stringify(data.member));
         setMember(data.member);
+        fetchBookmarkCount();
       } catch (error) {
         console.error("로그인 유지 확인 실패:", error);
         localStorage.removeItem("token");
         localStorage.removeItem("member");
         setMember(null);
+        setBookmarkCount(0);
       }
     };
 
@@ -61,13 +97,7 @@ function App() {
 
   useEffect(() => {
     const updateBookmarkCount = () => {
-      try {
-        const bookmarks = JSON.parse(localStorage.getItem("bookmarks") || "[]");
-        setBookmarkCount(Array.isArray(bookmarks) ? bookmarks.length : 0);
-      } catch (error) {
-        console.error("북마크 개수 확인 실패:", error);
-        setBookmarkCount(0);
-      }
+      fetchBookmarkCount();
     };
 
     updateBookmarkCount();
@@ -83,14 +113,27 @@ function App() {
 
   const handleAuthSuccess = (loginMember) => {
     setMember(loginMember);
+    fetchBookmarkCount();
     setPage("search");
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("member");
+
     setMember(null);
+    setBookmarkCount(0);
     setPage("landing");
+  };
+
+  const handleBookmarkPageClick = () => {
+    if (!member) {
+      alert("북마크는 로그인 후 이용할 수 있습니다.");
+      setPage("login");
+      return;
+    }
+
+    setPage("bookmark");
   };
 
   return (
@@ -115,14 +158,14 @@ function App() {
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           <button
             style={styles.bookmarkHeaderBtn}
-            onClick={() => setPage("bookmark")}
+            onClick={handleBookmarkPageClick}
             title="북마크"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
             </svg>
 
-            {bookmarkCount > 0 && (
+            {member && bookmarkCount > 0 && (
               <span style={styles.bookmarkCountBadge}>
                 {bookmarkCount > 99 ? "99+" : bookmarkCount}
               </span>
@@ -208,28 +251,30 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     borderRadius: "50%",
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
   },
 
   bookmarkCountBadge: {
-  position: "absolute",
-  top: -4,
-  right: -4,
-  minWidth: 15,
-  height: 15,
-  padding: "0 4px",
-  borderRadius: 999,
-  background: "#E86F00",
-  color: "#fff",
-  fontSize: 9,
-  fontWeight: 700,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  lineHeight: 1,
-  boxSizing: "border-box",
-  border: "1.5px solid #fff",
+    position: "absolute",
+    top: -7,
+    right: -7,
+    minWidth: 17,
+    height: 17,
+    padding: "0 5px",
+    borderRadius: 999,
+    background: "#E86F00",
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: "17px",
+    boxSizing: "border-box",
+    border: "2px solid #fff",
+    boxShadow: "0 1px 4px rgba(232, 111, 0, 0.35)",
+    zIndex: 2,
   },
 };
 
