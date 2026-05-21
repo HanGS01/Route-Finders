@@ -893,6 +893,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           <CaseMap
             cases={mapCases}
             highlightedIds={recommendedCaseIds}
+            focusCaseId={selectedCase?.case_idx || selectedCase?.id || null}
             onCaseClick={(caseData) => handleCaseSelect(caseData, "map")}
           />
         </div>

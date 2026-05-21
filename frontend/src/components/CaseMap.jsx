@@ -89,6 +89,7 @@ function normalizeCase(item, index) {
 export default function CaseMap({
   cases = [],
   highlightedIds = [],
+  focusCaseId = null,
   onCaseClick,
 }) {
   const svgRef = useRef(null);
@@ -500,6 +501,51 @@ export default function CaseMap({
     svg.call(zoom.transform, currentTransformRef.current);
 
   }, [mappedCases, highlightedIds, dimensions]);
+
+  useEffect(() => {
+    if (!focusCaseId || !svgRef.current || !zoomRef.current) return;
+
+    const targetCase = mappedCases.find((item) => {
+      const itemId = String(item.id);
+      const caseIdx = String(item.case_idx);
+
+      return itemId === String(focusCaseId) || caseIdx === String(focusCaseId);
+    });
+
+    if (!targetCase) return;
+
+    const { width, height } = dimensions;
+
+    const margin = {
+      top: 28,
+      right: 28,
+      bottom: 58,
+      left: 120,
+    };
+
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    if (innerW <= 0 || innerH <= 0) return;
+
+    const xScale = d3.scaleLinear().domain([0, 1000]).range([0, innerW]);
+    const yScale = d3.scaleLinear().domain([0, 1000]).range([innerH, 0]);
+
+    const targetX = xScale(targetCase.mapX);
+    const targetY = yScale(targetCase.mapY);
+    const targetScale = 1.5;
+
+    const nextTransform = d3.zoomIdentity
+      .translate(innerW / 2 - targetX * targetScale, innerH / 2 - targetY * targetScale)
+      .scale(targetScale);
+
+    currentTransformRef.current = nextTransform;
+
+    d3.select(svgRef.current)
+      .transition()
+      .duration(650)
+      .call(zoomRef.current.transform, nextTransform);
+  }, [focusCaseId, mappedCases, dimensions]);
 
   const doZoom = useCallback((factor) => {
     if (!svgRef.current || !zoomRef.current) return;
