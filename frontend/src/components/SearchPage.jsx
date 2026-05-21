@@ -594,7 +594,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSearch(); }}
             />
 
-            <div style={styles.exampleAreaInInput}>
+            <div style={{ ...styles.exampleAreaInInput, borderTop: textareaFocused ? "1px solid #E86F00" : "1px solid #e0e0e0" }}>
               <p style={styles.chipsLabel}>예시 고민</p>
               <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 6, flexWrap: "wrap" }}>
                 <span style={styles.exampleChip}>조직 내 실행력이 너무 떨어지는데 어떻게 개선할 수 있을까요</span>
@@ -728,12 +728,14 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             </div>
             
             <div style={styles.allListGrid}>
-              {allCases.slice(0, visibleCount).map((c) => (
+              {allCases.slice(0, visibleCount).map((c, index) => (
                 <div 
                   key={c.case_idx || c.id} 
                   style={{
                     ...styles.archiveCard,
                     borderBottom: "1px solid #f0f0f0",
+                    borderRight: index % 2 === 0 ? "1px solid #f0f0f0" : "none",
+                    paddingRight: index % 2 === 0 ? 24 : 12,
                     borderLeft: selectedCase?.title === c.title ? "3px solid #E86F00" : "3px solid transparent",
                     background: selectedCases.find((s) => s.title === c.title) ? "#FEF0E9" : "#fff"
                   }}
@@ -842,7 +844,7 @@ function PopularCaseBox({ cases, loading, error, onCaseClick }) {
     <div style={styles.popularBox}>
       <div style={styles.popularHeader}>
         <div>
-          <p style={styles.popularEyebrow}>실시간 탐색 데이터</p>
+          {/* <p style={styles.popularEyebrow}>실시간 탐색 데이터</p> */}
           <h3 style={styles.popularTitle}>많이 조회된 케이스</h3>
         </div>
         <span style={styles.popularBadge}>TOP 5</span>
@@ -1292,7 +1294,7 @@ const styles = {
   logoArea: { marginBottom: "2.5rem" },
   logoTitle: { fontSize: 32, fontWeight: 500, lineHeight: 1.4, color: "#1a1a1a" },
   
-  filterWrapper: { marginBottom: "1.5rem", background: "#fff", border: "1px solid #ede8e2", borderRadius: 12, padding: "20px 24px", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  filterWrapper: { marginBottom: "1.5rem", background: "#fff", border: "1px solid #ede8e2", borderRadius: 2, padding: "20px 24px", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
   filterSection: { marginBottom: 16, paddingBottom: 16, borderBottom: "1px dashed #f0f0f0" },
   filterLabel: { fontSize: 16, fontWeight: 600, color: "#666", marginBottom: 10 },
   chipGroup: { display: "flex", flexWrap: "wrap", gap: 8 },
@@ -1312,8 +1314,8 @@ const styles = {
   loadingText: { fontSize: 14, color: "#999" },
   dot: { width: 6, height: 6, borderRadius: "50%", background: "#E86F00", animation: "pulse 1.2s ease-in-out infinite" },
   errorText: { fontSize: 14, color: "#A32D2D", padding: "0.5rem 0" },
-  inputPanel: { background: "#fff", border: "1.5px solid #E86F00", borderRadius: 2, overflow: "hidden", boxSizing: "border-box" },
-  exampleAreaInInput: { padding: "8px 14px 10px", background: "#fff", border: "none", borderTop: "1px solid #F4C28A", boxSizing: "border-box" },
+  inputPanel: { background: "#f5f5f5", border: "1.5px solid #E86F00", borderRadius: 2, overflow: "hidden", boxSizing: "border-box" },
+  exampleAreaInInput: { padding: "8px 14px 10px", background: "#fff", border: "none", boxSizing: "border-box" },
   loadingStatusArea: { minHeight: 44, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "0.2rem 0 1rem", marginTop: "-0.2rem" },
   loadingStatusText: { fontSize: 17, fontWeight: 600, color: "#E86F00", letterSpacing: "-0.01em" },
   loadingEllipsis: { display: "inline-block", width: 28, textAlign: "left" },
@@ -1322,11 +1324,11 @@ const styles = {
   popularHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
   popularEyebrow: { fontSize: 12, color: "#999", margin: 0, marginBottom: 4 },
   popularTitle: { fontSize: 20, fontWeight: 800, color: "#1a1a1a", margin: 0 },
-  popularBadge: { fontSize: 12, fontWeight: 700, color: "#E86F00", background: "#FEF0E9", borderRadius: 20, padding: "5px 9px" },
+  popularBadge: { fontSize: 12, fontWeight: 700, color: "#E86F00" },
   popularMessage: { fontSize: 14, color: "#777", lineHeight: 1.5, padding: "14px 0", margin: 0 },
   popularList: { display: "flex", flexDirection: "column", gap: 8 },
   popularItem: { display: "flex", gap: 12, padding: "12px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid #f0f0f0", transition: "all 0.2s", background: "#fff" },
-  popularRank: { width: 26, height: 26, borderRadius: "50%", background: "#E86F00", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 },
+  popularRank: { fontSize: 14, fontWeight: 800, color: "#E86F00", flexShrink: 0, minWidth: 12 },
   popularMeta: { display: "flex", gap: 5, fontSize: 12, color: "#E86F00", fontWeight: 600, marginBottom: 4 },
   popularItemTitle: { fontSize: 14, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.4, margin: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   popularCompany: { fontSize: 12, color: "#999", marginTop: 5 },
@@ -1373,7 +1375,7 @@ const styles = {
   allListHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   allListTitle: { fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0 },
   btnCloseAll: { background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 },
-  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 },  
+  allListGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1px", borderTop: "1px solid #f0f0f0", background: "#f0f0f0" },
   archiveCard: { padding: "16px 12px", background: "#fff", borderBottom: "1px solid #f0f0f0", cursor: "pointer", transition: "all 0.2s" },
   archiveHeader: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#999", marginBottom: 6 },
   archiveIndustry: { fontSize: 14, fontWeight: 600, color: "#E86F00" },
