@@ -155,7 +155,7 @@ const styles = {
 };
 
 const STATS = [
-  { num: "96+", label: "DBR 케이스 스터디" },
+  { num: "120+", label: "DBR 케이스 스터디" },
   { num: "2021–26", label: "DBR 아카이브" },
   { num: "3 클릭", label: "목표 탐색 뎁스" },
   { num: "상위 5건", label: "추천 케이스 수" },

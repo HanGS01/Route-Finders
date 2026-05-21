@@ -12,7 +12,7 @@ export default function LoginPage({ onSignup, onSuccess }) {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      setError("이메일과 비밀번호를 입력해주세요.");
+      setError("아이디와 비밀번호를 입력해주세요.");
       return;
     }
 

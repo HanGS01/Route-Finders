@@ -42,6 +42,7 @@ const getStatusMessage = (status, defaultMessage) => {
 export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   
@@ -240,6 +241,30 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       window.removeEventListener("storage", handleBookmarkUpdated);
     };
   }, []);
+
+  useEffect(() => {
+    let interval;
+    if (loading) {
+      setProgress(0);
+      interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) return prev;
+          const increment = Math.floor(Math.random() * 7) + 2;
+          return Math.min(prev + increment, 90);
+        });
+      }, 400);
+    } else {
+      setProgress(100);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const getLoadingText = (percent) => {
+    if (percent < 30) return "입력하신 비즈니스 문제를 분석하는 중...";
+    if (percent < 60) return "DBR 아카이브에서 유사 상황을 탐색하는 중...";
+    if (percent < 90) return "AI가 해결 전략과 케이스를 매칭하는 중...";
+    return "최적의 케이스를 마무리 정리하는 중...";
+  };
 
   const handleToggleBookmark = async (caseData) => {
     const token = localStorage.getItem("token");
@@ -829,9 +854,15 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       {loading && (
         <div style={styles.fullScreenLoading}>
           <div style={styles.loadingContent}>
-            <span style={styles.loadingStatusTextCenter}>
-              문제 분석 및 케이스 매칭 중<LoadingEllipsis />
-            </span>
+            <div style={styles.progressHeader}>
+              <span style={styles.loadingStatusTextCenter}>
+                {getLoadingText(progress)}
+              </span>
+              <span style={styles.progressPercent}>{progress}%</span>
+            </div>
+            <div style={styles.progressBarContainer}>
+              <div style={{ ...styles.progressBarFill, width: `${progress}%` }} />
+            </div>
           </div>
         </div>
       )}
@@ -1403,8 +1434,6 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
     transition: "all 0.2s"
   }, 
-  
-
 
   summaryPreviewHeader: {
     display: "flex",
@@ -1572,17 +1601,42 @@ const styles = {
   loadingContent: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    gap: 16,
-    padding: "40px 60px",
+    padding: "36px 40px",
     background: "#fff",
-    borderRadius: 16,
+    borderRadius: 12,
     boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+    width: 440,
+    maxWidth: "90%",
+    boxSizing: "border-box"
+  },
+  progressHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 16
   },
   loadingStatusTextCenter: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 700,
-    color: "#E86F00",
-    letterSpacing: "-0.01em",  
+    color: "#1a1a1a",
+    letterSpacing: "-0.01em",
+  },
+  progressPercent: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#E86F00"
+  },
+  progressBarContainer: {
+    width: "100%",
+    height: 8,
+    background: "#f0f0f0",
+    borderRadius: 4,
+    overflow: "hidden"
+  },
+  progressBarFill: {
+    height: "100%",
+    background: "#E86F00",
+    borderRadius: 4,
+    transition: "width 0.4s ease-out"
   },
 };
