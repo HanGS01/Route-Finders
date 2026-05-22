@@ -948,7 +948,9 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             {visibleCount < allCases.length && (
               <div style={{ textAlign: "center", marginTop: 30 }}>
                 <button 
-                  style={styles.btnLoadMore} 
+                  style={styles.btnLoadMore}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#E86F00"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#E86F00"; }}
                   onClick={() => setVisibleCount(prev => prev + 10)}
                 >
                   더보기
@@ -1301,7 +1303,7 @@ function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onToggle
 
   return (
     <div
-      style={{ ...styles.caseItem, border: isViewing ? "2px solid #E86F00" : "1px solid transparent", borderBottom: isViewing ? "2px solid #E86F00" : "1px solid #f0f0f0", background: isViewing ? "linear-gradient(135deg, #fff 60%, #FEF0E9 100%)" : isSelected ? "#FEF0E9" : "#fff" }}
+      style={{ ...styles.caseItem, border: isViewing ? "2px solid #E86F00" : "1px solid transparent", borderBottom: isViewing ? "2px solid #E86F00" : "1px solid #f0f0f0", background: isViewing ? "linear-gradient(135deg, #fff 60%, #FEF0E9 100%)" : "#fff" }}
       onClick={onClick}
     >
       <div style={{ ...styles.caseRank, color: item.rank <= 3 ? "#E86F00" : "#aaaaaa" }}>{item.rank}</div>
@@ -1353,7 +1355,7 @@ function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggle
 
   return (
     <>
-      <div style={styles.panel}>
+      <div style={{ ...styles.panel, paddingBottom: selectedCases.length > 0 ? 120 : 32 }}>
       <div style={styles.panelHeader}>
         <h3 style={styles.panelTitle}>{caseData.title}</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1645,8 +1647,8 @@ const styles = {
   popularCompany: { fontSize: 12, color: "#999", marginTop: 5 },
 
   recommendStatusBox: {
-    background: "#FEF0E0",
-    border: "1px solid #F4C28A",
+    background: "#fef0e9",
+    border: "1px solid #fff",
     borderRadius: 8,
     padding: "12px 14px",
     marginBottom: 12,
@@ -1666,7 +1668,7 @@ const styles = {
     margin: 0,
   },
 
-  infoBtn: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#E86F00", background: "#FEF0E0", border: "none", borderRadius: 20, cursor: "pointer", transition: "background 0.2s" },
+  infoBtn: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#E86F00", background: "#fef0e9", border: "none", borderRadius: 20, cursor: "pointer", transition: "background 0.2s" },
   card: { background: "#fff", border: "0.5px solid #fff", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: 12 },
   cardLabel: { fontSize: 21, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#1a1a1a", margin: 0, textAlign: "left" },
   problemSummary: { fontSize: 15, color: "#333", lineHeight: 1.7, marginBottom: 16 },
@@ -1694,7 +1696,7 @@ const styles = {
   archiveTitle: { fontSize: 18, fontWeight: 900, color: "#1a1a1a", marginBottom: 4 },
   archiveCompany: { fontSize: 15, color: "#666", marginBottom: 8 },
   archiveSummary: { fontSize: 14, color: "#666", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
-  btnLoadMore: { padding: "12px 30px", fontSize: 14, fontWeight: 600, color: "#E86F00", background: "#fff", border: "1px solid #E86F00", borderRadius: 2, cursor: "pointer" },
+  btnLoadMore: { padding: "12px 120px", fontSize: 14, fontWeight: 600, color: "#E86F00", background: "#fff", border: "1px solid #E86F00", borderRadius: 2, cursor: "pointer" },
 
   panel: { position: "fixed", top: 72, right: 0, width: 420, height: "calc(100vh - 72px)", background: "#fff", borderLeft: "1px solid #e0e0e0", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 200, padding: "2rem", boxSizing: "border-box", overflowY: "auto", display: "flex", flexDirection: "column" },
   panelHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
