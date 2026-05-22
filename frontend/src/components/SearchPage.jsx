@@ -832,13 +832,13 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             <div style={{ ...styles.exampleAreaInInput, borderTop: "1px solid #e0e0e0" }}>
               <p style={styles.chipsLabel}>예시 고민</p>
               <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 6, flexWrap: "wrap" }}>
-                <span style={styles.exampleChip}>조직 내 실행력이 너무 떨어지는데 어떻게 개선할 수 있을까요</span>
-                <span style={styles.exampleChip}>신사업을 시작하려는데 어느 시장부터 진입해야 할지 모르겠어요</span>
+                <span style={styles.exampleChip}>리테일 업종에서 3년 차 마케터인데, 브랜드 인지도는 높아졌는데 실제 구매 전환율이 너무 낮아요.</span>
+                <span style={styles.exampleChip}>식음료 스타트업 창업한지 2년차, 매출은 나오는데 수익성이 계속 악화되고 있어요.</span>
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
-                <span style={styles.exampleChip}>매출은 나오는데 수익성이 계속 악화되고 있어요</span>
-                <span style={styles.exampleChip}>브랜드 인지도는 높은데 구매 전환이 안 돼요</span>
-                <span style={styles.exampleChip}>고객 이탈률이 높아지고 있는데 원인을 모르겠어요</span>
+                <span style={styles.exampleChip}>IT 플랫폼 기업 신사업팀 4년 차인데, 새로운 시장에 진입하려는데 어디서부터 시작해야 할까요?</span>
+                <span style={styles.exampleChip}>커머스 회사 PM입니다. 신규 유저는 늘고 있는데 고객 이탈률이 높아서 고민이에요.</span>
+                <span style={styles.exampleChip}>헬스케어 스타트업 대표인데, 기술은 있는데 어떤 고객층부터 공략해야 할지 방향을 못 잡겠어요.</span>
               </div>
             </div>
           </div>
