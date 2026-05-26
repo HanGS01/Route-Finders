@@ -42,6 +42,9 @@ const getStatusMessage = (status, defaultMessage) => {
 export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [queryHistory, setQueryHistory] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState("today");
+  const [showQueryHistory, setShowQueryHistory] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -77,6 +80,11 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [browseHover, setBrowseHover] = useState(false);
   const [showSelectedList, setShowSelectedList] = useState(false);
   const resultSectionRef = useRef(null);
+
+  useEffect(() => {
+    const savedHistory = JSON.parse(localStorage.getItem("businessQueryHistory") || "[]");
+    setQueryHistory(savedHistory);
+  }, []);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -445,6 +453,25 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     }
   };
 
+  const saveBusinessQueryHistory = (text) => {
+    const trimmedText = text.trim();
+
+    if (!trimmedText) return;
+
+    const newItem = {
+      id: Date.now(),
+      text: trimmedText,
+      created_at: new Date().toISOString(),
+    };
+
+    const savedHistory = JSON.parse(localStorage.getItem("businessQueryHistory") || "[]");
+
+    const updatedHistory = [newItem, ...savedHistory];
+
+    localStorage.setItem("businessQueryHistory", JSON.stringify(updatedHistory));
+    setQueryHistory(updatedHistory);
+  };
+
   const handleSearch = async () => {
     const filters = [selectedIndustry, selectedCategory, selectedKeyword]
       .filter((val) => val && val !== "상관없음")
@@ -459,6 +486,8 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       : filters;
 
     const rawQueryText = query.trim();
+    
+    saveBusinessQueryHistory(rawQueryText);
 
     const blockedRawQueryPattern =
       /(시발|씨발|ㅅㅂ|병신|새끼|개새|좆|존나|ㅈㄴ|꺼져|죽어|대머리새끼|미친|개빡|짜증)/i;
@@ -655,6 +684,30 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       setLoading(false);
       setHasSearched(true);
     }
+  };
+
+  const getFilteredQueryHistory = () => {
+    const now = new Date();
+
+    return queryHistory.filter((item) => {
+      const createdAt = new Date(item.created_at);
+      const diffTime = now - createdAt;
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      if (historyFilter === "today") {
+        return createdAt.toDateString() === now.toDateString();
+      }
+
+      if (historyFilter === "week") {
+        return diffDays <= 7;
+      }
+
+      if (historyFilter === "month") {
+        return diffDays <= 30;
+      }
+
+      return true;
+    });
   };
 
   const handleClear = () => {
@@ -858,6 +911,78 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               onClick={handleSearch}
               disabled={isSearchDisabled}
             >케이스 탐색 시작</button>
+          </div>
+          <div style={styles.historyToggleWrapper}>
+            <button
+              type="button"
+              style={styles.historyToggleBtn}
+              onClick={() => setShowQueryHistory(prev => !prev)}
+            >
+              <span>최근 입력한 비즈니스 고민</span>
+              <span style={styles.historyToggleIcon}>
+                {showQueryHistory ? "▲" : "▼"}
+              </span>
+            </button>
+
+            {showQueryHistory && (
+              <div style={styles.historyPanel}>
+                <div style={styles.historyFilterGroup}>
+                  <button
+                    type="button"
+                    style={historyFilter === "today" ? styles.historyFilterActive : styles.historyFilterBtn}
+                    onClick={() => setHistoryFilter("today")}
+                  >
+                    오늘
+                  </button>
+                  <button
+                    type="button"
+                    style={historyFilter === "week" ? styles.historyFilterActive : styles.historyFilterBtn}
+                    onClick={() => setHistoryFilter("week")}
+                  >
+                    일주일
+                  </button>
+                  <button
+                    type="button"
+                    style={historyFilter === "month" ? styles.historyFilterActive : styles.historyFilterBtn}
+                    onClick={() => setHistoryFilter("month")}
+                  >
+                    한 달
+                  </button>
+                  <button
+                    type="button"
+                    style={historyFilter === "all" ? styles.historyFilterActive : styles.historyFilterBtn}
+                    onClick={() => setHistoryFilter("all")}
+                  >
+                    전체
+                  </button>
+                </div>
+
+                {getFilteredQueryHistory().length === 0 ? (
+                  <p style={styles.historyEmpty}>아직 기록된 고민이 없습니다.</p>
+                ) : (
+                  <div style={styles.historyList}>
+                    {getFilteredQueryHistory().map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        style={styles.historyItem}
+                        onClick={() => {
+                          setQuery(item.text);
+                          setTextareaFocused(true);
+                          setShowQueryHistory(false);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
+                        <span style={styles.historyText}>{item.text}</span>
+                        <span style={styles.historyDate}>
+                          {new Date(item.created_at).toLocaleString()}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1395,6 +1520,16 @@ function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggle
   const [addHover, setAddHover] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
+  useEffect(() => {
+    if (!caseData) return;
+    const now = new Date();
+    const viewedAt = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const newItem = { ...caseData, viewedAt };
+    const prev = JSON.parse(localStorage.getItem("caseHistory") || "[]");
+    const filtered = prev.filter((h) => h.title !== caseData.title);
+    localStorage.setItem("caseHistory", JSON.stringify([newItem, ...filtered].slice(0, 30)));
+  }, [caseData]);
+  
   const toggleBookmark = (e) => {
     e.stopPropagation();
     onToggleBookmark?.();
@@ -2455,4 +2590,113 @@ const styles = {
     fontSize: 13,
     color: "#666",
   },
+
+historyToggleWrapper: {
+  marginTop: 18,
+},
+
+historyToggleBtn: {
+  width: "100%",
+  height: 48,
+  background: "#fff",
+  border: "1px solid #e0e0e0",
+  borderRadius: 8,
+  padding: "0 16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  fontSize: 14,
+  fontWeight: 700,
+  color: "#1a1a1a",
+  cursor: "pointer",
+  fontFamily: "inherit",
+},
+
+historyToggleIcon: {
+  fontSize: 12,
+  color: "#E86F00",
+},
+
+historyPanel: {
+  marginTop: 8,
+  background: "#fff",
+  border: "1px solid #e0e0e0",
+  borderRadius: 8,
+  padding: 16,
+},
+
+historyFilterGroup: {
+  display: "flex",
+  gap: 6,
+  justifyContent: "flex-end",
+  flexWrap: "wrap",
+  marginBottom: 12,
+},
+
+historyFilterBtn: {
+  padding: "6px 10px",
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#666",
+  background: "#f5f5f5",
+  border: "1px solid #e0e0e0",
+  borderRadius: 20,
+  cursor: "pointer",
+  fontFamily: "inherit",
+},
+
+historyFilterActive: {
+  padding: "6px 10px",
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#fff",
+  background: "#E86F00",
+  border: "1px solid #E86F00",
+  borderRadius: 20,
+  cursor: "pointer",
+  fontFamily: "inherit",
+},
+
+historyEmpty: {
+  margin: 0,
+  fontSize: 13,
+  color: "#999",
+  textAlign: "center",
+  padding: "14px 0",
+},
+
+historyList: {
+  display: "flex",
+  flexDirection: "column",
+  gap: 8,
+  maxHeight: 220,
+  overflowY: "auto",
+},
+
+historyItem: {
+  width: "100%",
+  textAlign: "left",
+  background: "#fafafa",
+  border: "1px solid #eeeeee",
+  borderRadius: 6,
+  padding: "10px 12px",
+  cursor: "pointer",
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  fontFamily: "inherit",
+},
+
+historyText: {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#333",
+  lineHeight: 1.5,
+},
+
+historyDate: {
+  fontSize: 11,
+  color: "#999",
+},
 };
+
