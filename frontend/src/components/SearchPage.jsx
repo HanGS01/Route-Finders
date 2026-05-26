@@ -361,6 +361,14 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const saveSearchQueryLog = async (searchQuery, queryMeta, recommendations = []) => {
     if (!searchQuery) return null;
 
+    const blockedRawQueryPattern =
+      /(시발|씨발|ㅅㅂ|병신|새끼|개새|좆|존나|ㅈㄴ|꺼져|죽어|대머리새끼|미친|개빡|짜증)/i;
+
+    if (blockedRawQueryPattern.test(searchQuery)) {
+      console.log("검색 로그 저장 제외: 원문에 부적절한 표현 포함", searchQuery);
+      return null;
+    }
+
     const isValidBusinessQuery = queryMeta?.is_valid_business_query !== false;
     const displayKeyword = queryMeta?.display_keyword
       ? String(queryMeta.display_keyword).trim()
@@ -449,6 +457,46 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         ? `[필터조건: ${filters}] ${query.trim()}`
         : query.trim()
       : filters;
+
+    const rawQueryText = query.trim();
+
+    const blockedRawQueryPattern =
+      /(시발|씨발|ㅅㅂ|병신|새끼|개새|좆|존나|ㅈㄴ|꺼져|죽어|대머리새끼|미친|개빡|짜증)/i;
+
+    if (blockedRawQueryPattern.test(rawQueryText)) {
+      const noticeMessage =
+        "입력하신 문장에 부적절한 표현이 포함되어 있어요. 비즈니스 문제 중심으로 다시 작성해주세요.";
+
+      setResult({
+        problem_summary: noticeMessage,
+        problem_types: [],
+        kpis: [],
+        causes: [],
+        query_idx: null,
+        query_meta: {
+          is_valid_business_query: false,
+          invalid_reason: noticeMessage,
+        },
+        result_status: {
+          status: "NO_RESULT",
+          message: noticeMessage,
+        },
+        cases: [],
+      });
+
+      setInvalidNotice(noticeMessage);
+
+      if (onSearch) {
+        onSearch([]);
+      }
+
+      setTimeout(() => {
+        setInvalidNotice("");
+      }, 3200);
+
+      setHasSearched(true);
+      return;
+    }
 
     setLoading(true);
     setResult(null);
@@ -763,14 +811,15 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <div style={{ ...styles.inputPanel, border: textareaFocused ? "1.5px solid #E86F00" : "1px solid #e0e0e0" }}>
+          <div style={{ ...styles.inputPanel, border: "1px solid #e0e0e0" }}>
             <textarea
               style={{
                 ...styles.textarea,
                 background: textareaFocused ? "#fff" : "#f5f5f5",
-                border: "none",
+                border: textareaFocused ? "1.5px solid #E86F00" : "1px solid transparent",
                 borderBottom: "none",
                 borderRadius: 0,
+                marginBottom: -5,
               }}
               placeholder="비즈니스 고민을 자유롭게 입력해주세요."
               value={query}
@@ -780,16 +829,16 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSearch(); }}
             />
 
-            <div style={{ ...styles.exampleAreaInInput, borderTop: textareaFocused ? "1px solid #E86F00" : "1px solid #e0e0e0" }}>
+            <div style={{ ...styles.exampleAreaInInput, borderTop: "1px solid #e0e0e0" }}>
               <p style={styles.chipsLabel}>예시 고민</p>
               <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 6, flexWrap: "wrap" }}>
-                <span style={styles.exampleChip}>조직 내 실행력이 너무 떨어지는데 어떻게 개선할 수 있을까요</span>
-                <span style={styles.exampleChip}>신사업을 시작하려는데 어느 시장부터 진입해야 할지 모르겠어요</span>
+                <span style={styles.exampleChip}>리테일 업종에서 3년 차 마케터인데, 브랜드 인지도는 높아졌는데 실제 구매 전환율이 너무 낮아요.</span>
+                <span style={styles.exampleChip}>식음료 스타트업 창업한지 2년차, 매출은 나오는데 수익성이 계속 악화되고 있어요.</span>
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
-                <span style={styles.exampleChip}>매출은 나오는데 수익성이 계속 악화되고 있어요</span>
-                <span style={styles.exampleChip}>브랜드 인지도는 높은데 구매 전환이 안 돼요</span>
-                <span style={styles.exampleChip}>고객 이탈률이 높아지고 있는데 원인을 모르겠어요</span>
+                <span style={styles.exampleChip}>IT 플랫폼 기업 신사업팀 4년 차인데, 새로운 시장에 진입하려는데 어디서부터 시작해야 할까요?</span>
+                <span style={styles.exampleChip}>커머스 회사 PM입니다. 신규 유저는 늘고 있는데 고객 이탈률이 높아서 고민이에요.</span>
+                <span style={styles.exampleChip}>헬스케어 스타트업 대표인데, 기술은 있는데 어떤 고객층부터 공략해야 할지 방향을 못 잡겠어요.</span>
               </div>
             </div>
           </div>
@@ -1025,7 +1074,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         <div style={styles.fullScreenLoading}>
           <div style={styles.loadingContent}>
             <div style={styles.progressHeader}>
-              <span style={styles.loadingStatusTextCenter}>
+              <span style={{ ...styles.loadingStatusTextCenter, flex: 1, textAlign: "center" }}>
                 {getLoadingText(progress)}
               </span>
               <span style={styles.progressPercent}>{progress}%</span>
@@ -1086,6 +1135,8 @@ function PopularRankBoard({
               <button
                 key={item.case_idx || item.id}
                 style={styles.popularCompactItem}
+                onMouseEnter={e => e.currentTarget.style.border = "1px solid #E86F00"}
+                onMouseLeave={e => e.currentTarget.style.border = "1px solid #f0f0f0"}
                 onClick={() => onCaseClick(item)}
                 title={item.title}
               >
@@ -1121,6 +1172,8 @@ function PopularRankBoard({
               <button
                 key={`${item.keyword_group || item.display_keyword}-${index}`}
                 style={styles.popularKeywordItem}
+                onMouseEnter={e => e.currentTarget.style.borderBottom = "1px solid #E86F00"}
+                onMouseLeave={e => e.currentTarget.style.borderBottom = "1px solid #f0f0f0"}
                 onClick={() => onQueryClick(item.keyword_group || item.display_keyword)}
                 title="검색창에 입력하기"
               >
@@ -1597,7 +1650,7 @@ const styles = {
   popularCompactMeta: { fontSize: 12, color: "#E86F00", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   popularCompactTitle: { fontSize: 13.5, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   popularCompactCompany: { fontSize: 12, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  popularKeywordItem: { width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "7px 8px", background: "#fff", border: "1px solid #f0f0f0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" },
+  popularKeywordItem: { width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 8px", background: "#fff", border: "none", borderBottom: "1px solid #f0f0f0", borderRadius: 0, cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" },
   popularKeywordText: { flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 800, color: "#1a1a1a", lineHeight: 1.35, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   popularKeywordCount: { minWidth: 22, height: 20, padding: "0 6px", borderRadius: 999, background: "#FEF0E9", color: "#E86F00", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" },
   page: { width: "100%", margin: "0 auto", padding: 0, fontFamily: "'Pretendard', 'Apple SD Gothic Neo', sans-serif", boxSizing: "border-box" },
@@ -1616,7 +1669,7 @@ const styles = {
   chipNone: { padding: "7px 18px", fontSize: 15, fontWeight: 500, color: "#888", background: "#f9f9f9", border: "1px dashed #d0d0d0", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
   chipActiveNone: { padding: "7px 18px", fontSize: 15, fontWeight: 600, color: "#fff", background: "#666", border: "1px solid #666", borderRadius: 20, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)" },
 
-  textarea: { width: "100%", minHeight: 100, padding: "14px 16px", fontSize: 16, fontFamily: "inherit", color: "#1a1a1a", background: "#f5f5f5", border: "1px solid #e0e0e0", borderRadius: 2, lineHeight: 1.6, outline: "none", boxSizing: "border-box", resize: "none", maxHeight: 180 },
+  textarea: { width: "100%", minHeight: 100, padding: "14px 16px", fontSize: 16, fontFamily: "inherit", color: "#1a1a1a", background: "#f5f5f5", borderRadius: 2, lineHeight: 1.6, outline: "none", boxSizing: "border-box", resize: "none", maxHeight: 180 },
   btnRow: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12, marginBottom: "0.8rem" },
   btnClear: { padding: "8px 16px", fontSize: 15, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" },
   btnSearch: { padding: "8px 20px", fontSize: 15, fontWeight: 500, color: "#fff", background: "#E86F00", border: "none", borderRadius: 2, fontFamily: "inherit" },
@@ -1627,7 +1680,7 @@ const styles = {
   loadingText: { fontSize: 14, color: "#999" },
   dot: { width: 6, height: 6, borderRadius: "50%", background: "#E86F00", animation: "pulse 1.2s ease-in-out infinite" },
   errorText: { fontSize: 14, color: "#A32D2D", padding: "0.5rem 0" },
-  inputPanel: { background: "#f5f5f5", border: "1.5px solid #E86F00", borderRadius: 2, overflow: "hidden", boxSizing: "border-box" },
+  inputPanel: { background: "#f5f5f5", border: "1px solid #e0e0e0", overflow: "hidden", boxSizing: "border-box" },
   exampleAreaInInput: { padding: "8px 14px 10px", background: "#fff", border: "none", boxSizing: "border-box" },
   loadingStatusArea: { minHeight: 44, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "0.2rem 0 1rem", marginTop: "-0.2rem" },
   loadingStatusText: { fontSize: 17, fontWeight: 600, color: "#E86F00", letterSpacing: "-0.01em" },
@@ -1749,9 +1802,9 @@ const styles = {
     flexDirection: "column",
     padding: "36px 40px",
     background: "#fff",
-    borderRadius: 12,
+    borderRadius: 2,
     boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-    width: 440,
+    width: 520,
     maxWidth: "90%",
     boxSizing: "border-box"
   },
@@ -1766,6 +1819,7 @@ const styles = {
     fontWeight: 700,
     color: "#1a1a1a",
     letterSpacing: "-0.01em",
+    textAlign: "center",
   },
   progressPercent: {
     fontSize: 18,

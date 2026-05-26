@@ -281,6 +281,9 @@ display_keyword와 keyword_group의 차이:
 
 비정상 입력 규칙:
 - false일 때 display_keyword와 keyword_group을 절대 만들지 않는다.
+- 사용자 입력에 욕설, 비하 표현, 혐오 표현, 모욕적 표현이 포함되어 있으면 일부 비즈니스 키워드가 있더라도 is_valid_business_query를 false로 한다.
+- 예: "대머리새끼 마케팅", "시발 마케팅", "병신 같은 고객관리"처럼 부적절한 표현이 포함된 경우 false로 한다.
+- false일 때 display_keyword와 keyword_group을 절대 생성하지 않는다.
 """
 
     user_prompt = f"""
