@@ -3447,7 +3447,7 @@ historyToggleBtn: {
   height: 48,
   background: "#fff",
   border: "1px solid #e0e0e0",
-  borderRadius: 8,
+  borderRadius: 2,
   padding: "0 16px",
   display: "flex",
   alignItems: "center",
@@ -3468,7 +3468,7 @@ historyPanel: {
   marginTop: 8,
   background: "#fff",
   border: "1px solid #e0e0e0",
-  borderRadius: 8,
+  borderRadius: 2,
   padding: 16,
 },
 
