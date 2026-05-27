@@ -10,7 +10,7 @@ export default function RequestPage({ onBack }) {
   const [isPrivate, setIsPrivate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("likes"); // 정렬 및 필터 상태 관리
+  const [sortBy, setSortBy] = useState("likes");
   const [requests, setRequests] = useState([]);
 
   const member = JSON.parse(localStorage.getItem("member"));
@@ -44,12 +44,21 @@ export default function RequestPage({ onBack }) {
         })
       });
 
-      if (res.ok) {
+      const data = await res.json(); // 백엔드 응답 읽기
+
+      if (res.ok && data.success) {
         alert("등록되었습니다.");
         setTopic(""); setIndustry(""); setContent(""); setIsPrivate(false);
         fetchRequests();
+      } else {
+        // 백엔드에서 보낸 에러 메시지(예: "부적절한 내용...")를 경고창으로 띄움
+        alert(data.message || "등록에 실패했습니다.");
       }
-    } catch (err) { alert("서버 오류"); } finally { setIsSubmitting(false); }
+    } catch (err) { 
+      alert("서버 오류가 발생했습니다."); 
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
 
   const handleLike = async (idx) => {
@@ -77,21 +86,17 @@ export default function RequestPage({ onBack }) {
     } catch (err) { console.error("삭제 실패:", err); }
   };
 
-  // 필터링 및 정렬 로직
   const processedRequests = [...requests]
     .filter(req => {
       const matchesSearch = req.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             req.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             req.industry.toLowerCase().includes(searchQuery.toLowerCase());
-      
       const matchesPrivateOnly = sortBy === "private_only" ? req.is_private : true;
       const matchesMyPosts = sortBy === "my_posts" ? (member && Number(req.member_idx) === Number(member.member_idx)) : true;
-      
       return matchesSearch && matchesPrivateOnly && matchesMyPosts;
     })
     .sort((a, b) => {
       if (sortBy === "likes") return b.likes - a.likes;
-      // 기본은 최신순 (공감순이 아닐 때)
       return new Date(b.created_at) - new Date(a.created_at);
     });
 

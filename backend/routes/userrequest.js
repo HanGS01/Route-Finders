@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
+const { exec } = require("child_process");
+const path = require("path");
 
-// 1. 목록 조회 (관리자면 전부, 아니면 공개글+본인 글)
+// 1. 목록 조회
 router.get("/", async (req, res) => {
   const { member_idx, isAdmin } = req.query;
   const isAdm = isAdmin === 'true';
@@ -28,16 +30,42 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 2. 등록
+// 2. 등록 (AI 검사 로직 최적화)
 router.post("/", async (req, res) => {
-  try {
-    const { topic, industry, content, is_private, member_idx } = req.body;
-    await pool.query(
-      "INSERT INTO t_case_request (topic, industry, content, is_private, member_idx) VALUES ($1, $2, $3, $4, $5)",
-      [topic, industry, content, is_private, member_idx]
-    );
-    res.json({ success: true });
-  } catch (error) { res.status(500).json({ success: false }); }
+  const { topic, industry, content, is_private, member_idx } = req.body;
+  const fullText = (topic + " " + content).replace(/"/g, '\\"');
+  
+  // 파이썬 파일 위치 지정
+  const pythonScriptPath = path.join(__dirname, '../check_text.py');
+
+  // 명령어: 'python' 대신 아나콘다 환경의 경로를 잡을 확률이 높은 방식을 사용
+  exec(`python "${pythonScriptPath}" "${fullText}"`, async (error, stdout, stderr) => {
+    
+    // 로그를 반드시 확인하세요!
+    console.log("--- AI 검사 로그 ---");
+    console.log("결과(stdout):", stdout.trim());
+    if (error) console.log("실행오류(error):", error.message);
+    if (stderr) console.log("실행경고(stderr):", stderr);
+    console.log("-------------------");
+
+    // BAD라고 나오거나, 실행 자체가 실패했을 때 차단
+    if (error || stdout.trim() === "BAD") {
+      return res.status(400).json({ 
+        success: false, 
+        message: "부적절한 내용이 포함되어 등록할 수 없습니다." 
+      });
+    }
+
+    try {
+      await pool.query(
+        "INSERT INTO t_case_request (topic, industry, content, is_private, member_idx) VALUES ($1, $2, $3, $4, $5)",
+        [topic, industry, content, is_private, member_idx]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ success: false, message: "DB 저장 실패" });
+    }
+  });
 });
 
 // 3. 삭제
