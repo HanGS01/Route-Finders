@@ -1324,6 +1324,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
                     isViewing={selectedCase?.title === c.title}
                     isBookmarked={bookmarkedCaseIds.has(String(c.case_idx ?? c.id))}
                     onClick={() => handleCaseSelect(c, result ? "recommend" : "archive")}
+                    onDoubleClick={() => toggleSelectCase(c)}
                     onToggleBookmark={() => handleToggleBookmark(c)}
                     onRemove={() => setSelectedCases(prev => prev.filter(s => s.title !== c.title))}
                     onAdd={() => setSelectedCases(prev => prev.length < 3 ? [...prev, c] : prev)}
@@ -1850,7 +1851,7 @@ function TagSection({ label, tags, color }) {
   );
 }
 
-function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onToggleBookmark, onRemove, onAdd }) {
+function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onDoubleClick, onToggleBookmark, onRemove, onAdd }) {
   const toggleBookmark = (e) => {
     e.stopPropagation();
     onToggleBookmark?.();
@@ -1860,6 +1861,11 @@ function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onToggle
     <div
       style={{ ...styles.caseItem, border: isViewing ? "2px solid #E86F00" : "1px solid transparent", borderBottom: isViewing ? "2px solid #E86F00" : "1px solid #f0f0f0", background: isViewing ? "linear-gradient(135deg, #fff 60%, #FEF0E9 100%)" : "#fff" }}
       onClick={onClick}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDoubleClick?.();
+      }}
     >
       <div style={{ ...styles.caseRank, color: item.rank <= 3 ? "#E86F00" : "#aaaaaa" }}>{item.rank}</div>
       <div style={{ flex: 1 }}>
@@ -1871,7 +1877,14 @@ function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onToggle
         <p style={styles.caseTitle}>{item.title}</p>
         <p style={styles.caseMeta}>{item.company}</p>
       </div>
-      <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4, flexShrink: 0 }} onClick={toggleBookmark}>
+      <button
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 4, flexShrink: 0 }}
+        onClick={toggleBookmark}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
         <svg width="18" height="18" viewBox="0 0 24 24" fill={isBookmarked ? "#E86F00" : "none"} stroke="#E86F00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
         </svg>
@@ -1884,6 +1897,10 @@ function CaseItem({ item, isSelected, isViewing, isBookmarked, onClick, onToggle
             color: "#fff", background: isSelected ? "#1a1a1a" : "#E86F00",
           }}
           onClick={(e) => { e.stopPropagation(); isSelected ? onRemove() : onAdd?.(); }}
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
           {isSelected ? "제거" : "추가"}
         </button>
@@ -1935,10 +1952,110 @@ function InsightParagraphs({ text, paragraphStyle }) {
   );
 }
 
+
+const PERSONAL_STRATEGY_SECTION_ORDER = [
+  "케이스에서 가져올 포인트",
+  "내 상황에서 먼저 확인할 것",
+  "바로 실행할 액션",
+  "주의할 점",
+];
+
+function parsePersonalStrategySections(text) {
+  const normalized = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+
+  if (!normalized) return [];
+
+  const headingPattern = /^##\s*(.+)$/gm;
+  const matches = [...normalized.matchAll(headingPattern)];
+
+  if (matches.length === 0) {
+    return [
+      {
+        title: "적용 방향",
+        body: normalized,
+      },
+    ];
+  }
+
+  return matches.map((match, index) => {
+    const title = match[1].trim();
+    const start = match.index + match[0].length;
+    const end = index + 1 < matches.length ? matches[index + 1].index : normalized.length;
+    const body = normalized.slice(start, end).trim();
+
+    return { title, body };
+  }).filter((section) => section.title && section.body);
+}
+
+function renderStrategyBody(body, paragraphStyle, actionStyle) {
+  const blocks = String(body || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (blocks.length === 0) return null;
+
+  return blocks.map((line, index) => {
+    const isNumberedAction = /^\d+[.)]\s+/.test(line);
+    const cleanedLine = line.replace(/^[-•]\s*/, "");
+
+    if (isNumberedAction) {
+      return (
+        <p key={index} style={actionStyle || styles.strategyActionLine}>
+          {cleanedLine}
+        </p>
+      );
+    }
+
+    return (
+      <p key={index} style={paragraphStyle || styles.strategyModalParagraph}>
+        {cleanedLine}
+      </p>
+    );
+  });
+}
+
+function formatPersonalStrategyExportHtml(value, escapeHtml) {
+  const sections = parsePersonalStrategySections(value);
+
+  if (sections.length === 0) {
+    return `<p>${escapeHtml("아직 생성된 맞춤 전략이 없습니다.")}</p>`;
+  }
+
+  return sections
+    .map((section) => {
+      const lines = String(section.body || "")
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      const bodyHtml = lines
+        .map((line) => {
+          const isNumberedAction = /^\d+[.)]\s+/.test(line);
+          const cleanedLine = line.replace(/^[-•]\s*/, "");
+          const className = isNumberedAction ? "strategy-action-line" : "strategy-paragraph";
+          return `<p class="${className}">${escapeHtml(cleanedLine)}</p>`;
+        })
+        .join("");
+
+      return `
+        <div class="strategy-export-section">
+          <h3>${escapeHtml(section.title)}</h3>
+          ${bodyHtml}
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggleSelect, onToggleBookmark, onClose }) {
   const [linkHover, setLinkHover] = useState(false); 
   const [addHover, setAddHover] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showStrategyModal, setShowStrategyModal] = useState(false);
 
   useEffect(() => {
     if (!caseData) return;
@@ -2032,7 +2149,7 @@ function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggle
         )}
 
         {caseData.personal_strategy ? (
-          <div style={styles.personalStrategyBox}>
+          <div style={styles.personalStrategyPreviewBox}>
             <div style={styles.personalStrategyHeader}>
               <p style={styles.personalStrategyTitle}>맞춤 전략</p>
               {caseData.personal_strategy_status === "reference" && (
@@ -2042,10 +2159,16 @@ function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggle
                 <span style={styles.personalStrategyBadgeMuted}>적용 한계</span>
               )}
             </div>
-            <InsightParagraphs
-              text={caseData.personal_strategy}
-              paragraphStyle={styles.personalStrategyParagraph}
-            />
+            <p style={styles.personalStrategyPreviewText}>
+              현재 상황을 기준으로 정리한 실무형 적용 전략이 생성되었습니다.
+            </p>
+            <button
+              type="button"
+              style={styles.personalStrategyOpenBtn}
+              onClick={() => setShowStrategyModal(true)}
+            >
+              맞춤 전략 바로보기
+            </button>
           </div>
         ) : (
           <div style={styles.personalStrategyEmptyBox}>
@@ -2079,6 +2202,13 @@ function CasePanel({ caseData, selectedCases, isSelected, isBookmarked, onToggle
           caseData={caseData}
           onClose={() => setShowSummaryModal(false)}
           onOpenOriginal={openOriginalArticle}
+        />
+      )}
+
+      {showStrategyModal && (
+        <CasePersonalStrategyModal
+          caseData={caseData}
+          onClose={() => setShowStrategyModal(false)}
         />
       )}
     </>
@@ -2153,8 +2283,58 @@ function CaseSummaryModal({ caseData, onClose, onOpenOriginal }) {
   );
 }
 
+
+function CasePersonalStrategyModal({ caseData, onClose }) {
+  const sections = parsePersonalStrategySections(caseData.personal_strategy);
+
+  return (
+    <>
+      <div style={styles.caseSummaryModalOverlay} onClick={onClose} />
+
+      <div style={styles.caseSummaryModal}>
+        <div style={styles.caseSummaryModalHeader}>
+          <div>
+            <p style={styles.personalStrategyModalLabel}>맞춤 전략</p>
+            <h3 style={styles.caseSummaryModalTitle}>{caseData.title}</h3>
+            <p style={styles.caseSummaryModalMeta}>
+              {caseData.company || caseData.comp_name || "기업명 미등록"}
+              {caseData.industry ? ` · ${caseData.industry}` : ""}
+              {caseData.personal_strategy_status === "reference" ? " · 참고 관점" : ""}
+              {caseData.personal_strategy_status === "limited" ? " · 적용 한계" : ""}
+            </p>
+          </div>
+
+          <button style={styles.caseSummaryModalCloseBtn} onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        <div style={styles.strategyModalBody}>
+          {sections.length > 0 ? (
+            sections.map((section, index) => (
+              <div key={`${section.title}-${index}`} style={styles.strategyModalSection}>
+                <p style={styles.strategyModalSectionTitle}>{section.title}</p>
+                {renderStrategyBody(section.body)}
+              </div>
+            ))
+          ) : (
+            <p style={styles.strategyModalParagraph}>생성된 맞춤 전략이 없습니다.</p>
+          )}
+        </div>
+
+        <div style={styles.caseSummaryModalFooter}>
+          <button style={styles.caseSummaryModalMainBtn} onClick={onClose}>
+            확인
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function CompareSidebar({ cases, onClose }) {
   const [summaryCase, setSummaryCase] = useState(null);
+  const [personalStrategyCase, setPersonalStrategyCase] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportOptions, setExportOptions] = useState({
     industry: true,
@@ -2285,10 +2465,20 @@ function CompareSidebar({ cases, onClose }) {
       values: cases.map((c) => (
         <div style={c.personal_strategy ? styles.comparePersonalBox : styles.comparePersonalEmptyBox}>
           <p style={c.personal_strategy ? styles.comparePersonalTitle : styles.comparePersonalEmptyTitle}>맞춤 전략</p>
-          <InsightParagraphs
-            text={getPersonalStrategy(c)}
-            paragraphStyle={c.personal_strategy ? styles.comparePersonalParagraph : styles.comparePersonalEmptyParagraph}
-          />
+          {c.personal_strategy ? (
+            <>
+              <p style={styles.comparePersonalPreviewText}>실무형 적용 전략이 생성되었습니다.</p>
+              <button
+                type="button"
+                style={styles.compareSummaryBtn}
+                onClick={() => setPersonalStrategyCase(c)}
+              >
+                맞춤 전략 바로보기
+              </button>
+            </>
+          ) : (
+            <p style={styles.comparePersonalEmptyParagraph}>{getPersonalStrategy(c)}</p>
+          )}
         </div>
       )),
     },
@@ -2377,7 +2567,7 @@ function CompareSidebar({ cases, onClose }) {
         valueGetter: (c) => `
           <div class="personal-strategy-box">
             <p class="personal-strategy-title">맞춤 전략</p>
-            <div class="personal-strategy-text">${formatExportInsightHtml(getPersonalStrategy(c))}</div>
+            <div class="personal-strategy-text">${formatPersonalStrategyExportHtml(getPersonalStrategy(c), escapeHtml)}</div>
           </div>
         `,
       });
@@ -2537,6 +2727,25 @@ function CompareSidebar({ cases, onClose }) {
               line-height: 1.75;
             }
             .personal-strategy-text p:last-child { margin-bottom: 0; }
+            .strategy-export-section {
+              margin: 0 0 14px;
+              padding-bottom: 10px;
+              border-bottom: 1px solid #e4efe5;
+            }
+            .strategy-export-section:last-child {
+              margin-bottom: 0;
+              padding-bottom: 0;
+              border-bottom: none;
+            }
+            .strategy-export-section h3 {
+              margin: 0 0 7px;
+              color: #2F6F3A;
+              font-size: 12px;
+              font-weight: 900;
+            }
+            .strategy-action-line {
+              font-weight: 700;
+            }
             .summary-cell p {
               margin: 0 0 10px;
               color: #333;
@@ -2769,6 +2978,13 @@ function CompareSidebar({ cases, onClose }) {
           onOpenOriginal={() => openOriginalArticle(summaryCase)}
         />
       )}
+
+      {personalStrategyCase && (
+        <CasePersonalStrategyModal
+          caseData={personalStrategyCase}
+          onClose={() => setPersonalStrategyCase(null)}
+        />
+      )}
     </>
   );
 }
@@ -2914,7 +3130,7 @@ function QuickExportModal({ cases, onClose }) {
         valueGetter: (c) => `
           <div class="personal-strategy-box">
             <p class="personal-strategy-title">맞춤 전략</p>
-            <div class="personal-strategy-text">${formatExportInsightHtml(getPersonalStrategy(c))}</div>
+            <div class="personal-strategy-text">${formatPersonalStrategyExportHtml(getPersonalStrategy(c), escapeHtml)}</div>
           </div>
         `,
       });
@@ -3074,6 +3290,25 @@ function QuickExportModal({ cases, onClose }) {
               line-height: 1.75;
             }
             .personal-strategy-text p:last-child { margin-bottom: 0; }
+            .strategy-export-section {
+              margin: 0 0 14px;
+              padding-bottom: 10px;
+              border-bottom: 1px solid #e4efe5;
+            }
+            .strategy-export-section:last-child {
+              margin-bottom: 0;
+              padding-bottom: 0;
+              border-bottom: none;
+            }
+            .strategy-export-section h3 {
+              margin: 0 0 7px;
+              color: #2F6F3A;
+              font-size: 12px;
+              font-weight: 900;
+            }
+            .strategy-action-line {
+              font-weight: 700;
+            }
             .summary-cell p {
               margin: 0 0 10px;
               color: #333;
@@ -3239,6 +3474,15 @@ const styles = {
   personalCancelBtn: { padding: "10px 18px", fontSize: 13, color: "#666", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" },
   personalSubmitBtn: { padding: "10px 18px", fontSize: 13, fontWeight: 800, color: "#fff", background: "#E86F00", border: "none", borderRadius: 8, fontFamily: "inherit" },
   personalStrategyBox: { background: "#fff", border: "1px solid #d9e7dc", borderLeft: "3px solid #4A8F57", borderRadius: 6, padding: "14px 15px", marginBottom: 12 },
+  personalStrategyPreviewBox: { background: "#fff", border: "1px solid #d9e7dc", borderLeft: "3px solid #4A8F57", borderRadius: 6, padding: "14px 15px", marginBottom: 12 },
+  personalStrategyPreviewText: { margin: "0 0 11px", fontSize: 13, lineHeight: 1.6, color: "#666", wordBreak: "keep-all" },
+  personalStrategyOpenBtn: { width: "100%", padding: "10px 12px", fontSize: 13, fontWeight: 800, color: "#2F6F3A", background: "#F4FAF4", border: "1px solid #cfe4d2", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" },
+  personalStrategyModalLabel: { fontSize: 13, fontWeight: 800, color: "#2F6F3A", margin: "0 0 8px" },
+  strategyModalBody: { padding: "22px 24px", overflowY: "auto" },
+  strategyModalSection: { padding: "16px 0", borderBottom: "1px solid #f0f0f0" },
+  strategyModalSectionTitle: { margin: "0 0 10px", fontSize: 14, fontWeight: 900, color: "#2F6F3A" },
+  strategyModalParagraph: { margin: "0 0 10px", fontSize: 14.5, lineHeight: 1.85, color: "#333", letterSpacing: "-0.01em", wordBreak: "keep-all" },
+  strategyActionLine: { margin: "0 0 8px", padding: "9px 11px", fontSize: 14, lineHeight: 1.65, color: "#333", background: "#F7FBF7", border: "1px solid #e2efe4", borderRadius: 8, wordBreak: "keep-all" },
   personalStrategyHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 9 },
   personalStrategyTitle: { margin: 0, fontSize: 13, fontWeight: 900, color: "#2F6F3A" },
   personalStrategyParagraph: { margin: "0 0 9px", fontSize: 13.5, lineHeight: 1.75, color: "#444", wordBreak: "keep-all" },
@@ -3253,6 +3497,7 @@ const styles = {
   comparePersonalTitle: { margin: "0 0 7px", fontSize: 12, fontWeight: 900, color: "#2F6F3A" },
   comparePersonalText: { margin: 0, fontSize: 13, lineHeight: 1.7, color: "#444", wordBreak: "keep-all" },
   comparePersonalParagraph: { margin: "0 0 8px", fontSize: 13, lineHeight: 1.7, color: "#444", wordBreak: "keep-all" },
+  comparePersonalPreviewText: { margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.55, color: "#666", wordBreak: "keep-all" },
   comparePersonalEmptyBox: { background: "#fafafa", border: "1px dashed #e0e0e0", borderRadius: 6, padding: "12px 13px" },
   comparePersonalEmptyTitle: { margin: "0 0 7px", fontSize: 12, fontWeight: 900, color: "#999" },
   comparePersonalEmptyText: { margin: 0, fontSize: 13, lineHeight: 1.6, color: "#aaa", wordBreak: "keep-all" },

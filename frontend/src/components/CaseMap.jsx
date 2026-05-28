@@ -1052,10 +1052,10 @@ export default function CaseMap({
 
     // 유사도 거리 링. 배경이 너무 흐려 보이지 않도록 단계 구분을 선명하게 한다.
     const distanceGuides = [
-      { ratio: 0.25, label: "핵심 추천", stroke: "#f2a65a", width: 1.35, dash: "none", opacity: 0.75 },
-      { ratio: 0.5, label: "높은 관련도", stroke: "#d1d5db", width: 1.15, dash: "4,6", opacity: 0.9 },
-      { ratio: 0.75, label: "관련 후보", stroke: "#cfd4dc", width: 1.05, dash: "4,7", opacity: 0.9 },
-      { ratio: 1, label: "참고 후보", stroke: "#b8bec8", width: 1.15, dash: "5,7", opacity: 0.95 },
+      { ratio: 0.25, label: "추천 케이스", stroke: "#f2a65a", width: 1.35, dash: "none", opacity: 0.75 },
+      { ratio: 0.5, label: "연관 케이스", stroke: "#d1d5db", width: 1.15, dash: "4,6", opacity: 0.9 },
+      { ratio: 0.75, label: "탐색 케이스", stroke: "#cfd4dc", width: 1.05, dash: "4,7", opacity: 0.9 },
+      { ratio: 1, label: "참고 케이스", stroke: "#b8bec8", width: 1.15, dash: "5,7", opacity: 0.95 },
     ];
 
     guideLayer
@@ -1153,7 +1153,7 @@ export default function CaseMap({
       .attr("font-size", 11)
       .attr("font-weight", 800)
       .attr("fill", "#E86F00")
-      .text("현재 고민 중심");
+      .text("내 고민 중심");
 
     guideLayer
       .append("text")
