@@ -706,7 +706,10 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         reason_check: item.reason_check,
         personal_strategy: null,
         personal_strategy_status: null,
-      }));
+      })).filter((item) => {
+        const score = Number(item.final_score ?? 0);
+        return item.isRecommended || score >= 0.4;
+      });
 
       setResult({
         problem_summary:
@@ -924,6 +927,12 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
     return {
       ...c,
+      ...matched,
+      id: c.id,
+      case_idx: c.case_idx,
+      title: c.title,
+      company: c.company,
+      comp_name: c.comp_name,
       rank: matched.rank,
       similarity: matched.similarity,
       isRecommended: true,
@@ -931,8 +940,43 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       dynamic_y: matched.dynamic_y,
       map_group: matched.map_group,
       map_distance: matched.map_distance,
+      map_rank: matched.map_rank,
+      map_angle: matched.map_angle,
     };
   });
+
+  const mergeDefinedCaseData = (...sources) => {
+    const merged = {};
+
+    sources.forEach((source) => {
+      if (!source) return;
+
+      Object.entries(source).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          merged[key] = value;
+        }
+      });
+    });
+
+    return merged;
+  };
+
+  const enrichCaseForSelection = (caseData) => {
+    const targetId = String(caseData?.case_idx ?? caseData?.id ?? "");
+
+    if (!targetId) return caseData;
+
+    const archiveMatch = allCases.find((item) => String(item.case_idx ?? item.id) === targetId);
+    const mapMatch = result?.map_candidates?.find((item) => String(item.case_idx ?? item.id) === targetId);
+    const recommendMatch = result?.cases?.find((item) => String(item.case_idx ?? item.id) === targetId);
+
+    return mergeDefinedCaseData(
+      archiveMatch,
+      mapMatch,
+      recommendMatch,
+      caseData
+    );
+  };
 
   const saveCaseViewLog = async (caseData, viewSource = "unknown") => {
     const caseIdx = caseData?.case_idx || caseData?.id;
@@ -960,9 +1004,25 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   };
 
   const handleCaseSelect = (caseData, viewSource = "unknown") => {
-    setSelectedCase(caseData);
-    saveCaseViewLog(caseData, viewSource);
+    const enrichedCase = enrichCaseForSelection(caseData);
+    if (!enrichedCase) return;
+
+    setSelectedCase(enrichedCase);
+    saveCaseViewLog(enrichedCase, viewSource);
   };
+
+  useEffect(() => {
+    const handleMapCaseSelect = (event) => {
+      if (!event?.detail) return;
+      handleCaseSelect(event.detail, "map");
+    };
+
+    window.addEventListener("caseMapCaseSelect", handleMapCaseSelect);
+
+    return () => {
+      window.removeEventListener("caseMapCaseSelect", handleMapCaseSelect);
+    };
+  }, [result, allCases]);
 
   return (
     <>
