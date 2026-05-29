@@ -4579,8 +4579,8 @@ searchModeHelpWrap: {
 },
 
 searchModeHelpBtn: {
-  width: 35,
-  height: 35,
+  width: 30,
+  height: 30,
   borderRadius: "50%",
   border: "1px solid #fa8f51",
   background: "#fff",
