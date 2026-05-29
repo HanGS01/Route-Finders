@@ -364,15 +364,15 @@ export default function CaseMap({
   const onCaseClickRef = useRef(onCaseClick);
   const lastSelectRef = useRef({ key: "", time: 0 });
 
-  const [viewMode, setViewMode] = useState("scatter");
+  const [viewMode, setViewMode] = useState("dynamic");
   const [selectedCaseKey, setSelectedCaseKey] = useState("");
   const [centerRequestCount, setCenterRequestCount] = useState(0);
   const [hoveredCase, setHoveredCase] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(100);
   const [currentArea, setCurrentArea] = useState({
-    problem: "중앙",
-    strategy: "중앙",
+    problem: "검색어 중심",
+    strategy: "유사도 거리",
   });
   const [dimensions, setDimensions] = useState({ width: 1000, height: 700 });
 
@@ -1758,19 +1758,19 @@ export default function CaseMap({
             <div style={styles.viewToggle}>
               <button
                 type="button"
-                style={viewMode === "scatter" ? styles.viewToggleBtnActive : styles.viewToggleBtn}
-                onClick={() => handleViewModeChange("scatter")}
-              >
-                산점도
-              </button>
-              <button
-                type="button"
                 style={viewMode === "dynamic" ? styles.viewToggleBtnActive : styles.viewToggleBtn}
                 onClick={() => handleViewModeChange("dynamic")}
                 disabled={!hasDynamicMap}
                 title={!hasDynamicMap ? "검색 후 확인할 수 있습니다." : "현재 검색어 기준 동적 좌표 맵"}
               >
                 탐색형 맵
+              </button>
+              <button
+                type="button"
+                style={viewMode === "scatter" ? styles.viewToggleBtnActive : styles.viewToggleBtn}
+                onClick={() => handleViewModeChange("scatter")}
+              >
+                산점도
               </button>
             </div>
           </div>

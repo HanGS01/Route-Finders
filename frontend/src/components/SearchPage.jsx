@@ -49,6 +49,14 @@ const getStatusMessage = (status, defaultMessage) => {
 
 export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [query, setQuery] = useState("");
+  const [searchMode, setSearchMode] = useState("case");
+  const [showModeHelp, setShowModeHelp] = useState(false);
+  const [applyRole, setApplyRole] = useState("");
+  const [applySituation, setApplySituation] = useState("");
+  const [applyConstraint, setApplyConstraint] = useState("");
+  const [loadingSearchMode, setLoadingSearchMode] = useState("case");
+  const [loadingApplyStrategy, setLoadingApplyStrategy] = useState(false);
+  const [loadingApplyStep, setLoadingApplyStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [queryHistory, setQueryHistory] = useState([]);
   const [historyFilter, setHistoryFilter] = useState("today");
@@ -331,7 +339,38 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     return () => clearInterval(interval);
   }, [loading]);
 
+  useEffect(() => {
+    if (!loadingApplyStrategy) {
+      setLoadingApplyStep(0);
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      setLoadingApplyStep((prev) => prev + 1);
+    }, 1500);
+
+    return () => clearInterval(timer);
+  }, [loadingApplyStrategy]);
+
   const getLoadingText = (percent) => {
+    if (loadingSearchMode === "apply") {
+      if (loadingApplyStrategy) {
+        const applySteps = [
+          "추천 케이스를 내 상황에 맞게 해석하는 중...",
+          "실행 가능한 적용 전략을 구성하는 중...",
+          "주의할 점과 우선순위를 정리하는 중...",
+          "맞춤 전략을 보기 좋게 정리하는 중...",
+        ];
+
+        return applySteps[loadingApplyStep % applySteps.length];
+      }
+
+      if (percent < 30) return "입력하신 현재 상황을 분석하는 중...";
+      if (percent < 60) return "관련 DBR 케이스를 탐색하는 중...";
+      if (percent < 90) return "추천 케이스와 상황의 연결점을 확인하는 중...";
+      return "맞춤 전략 생성을 준비하는 중...";
+    }
+
     if (percent < 30) return "입력하신 비즈니스 문제를 분석하는 중...";
     if (percent < 60) return "DBR 아카이브에서 유사 상황을 탐색하는 중...";
     if (percent < 90) return "AI가 해결 전략과 케이스를 매칭하는 중...";
@@ -495,22 +534,123 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     setQueryHistory(updatedHistory);
   };
 
+
+  const handleDeleteQueryHistory = (historyId) => {
+    const updatedHistory = queryHistory.filter((item) => item.id !== historyId);
+    localStorage.setItem("businessQueryHistory", JSON.stringify(updatedHistory));
+    setQueryHistory(updatedHistory);
+    setTextareaFocused(true);
+    setShowQueryHistory(true);
+  };
+
+  const buildApplyContextText = () => {
+    const role = applyRole.trim();
+    const situation = applySituation.trim();
+    const constraint = applyConstraint.trim();
+
+    return [
+      role ? `직무/역할: ${role}` : "",
+      situation ? `현재 문제 상황: ${situation}` : "",
+      constraint ? `제약 조건/원하는 방향: ${constraint}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const isApplyInputReady = () => (
+    applyRole.trim() &&
+    applySituation.trim() &&
+    applyConstraint.trim()
+  );
+
+  const requestPersonalStrategiesForCases = async (userContext, sourceCases) => {
+    const requestBody = {
+      user_context: userContext,
+      cases: sourceCases.map((caseItem) => ({
+        case_idx: caseItem.case_idx || caseItem.id,
+        title: caseItem.title,
+        summary: caseItem.summary,
+        prob_def: caseItem.prob_def,
+        sol_detail: caseItem.sol_detail,
+        prob_main: caseItem.prob_main,
+        prob_keyword: caseItem.prob_keyword,
+        sol_type: caseItem.sol_type,
+        industry: caseItem.industry,
+        perf_type: caseItem.perf_type,
+        perf_dir: caseItem.perf_dir,
+        reco_reason: caseItem.reco_reason,
+        condition_match: caseItem.condition_match,
+        final_score: caseItem.final_score,
+      })),
+    };
+
+    const res = await fetch(`${AI_API_BASE_URL}/personal-strategies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.detail || "맞춤 전략 생성에 실패했습니다.");
+    }
+
+    const data = await res.json();
+    const strategies = Array.isArray(data.strategies) ? data.strategies : [];
+
+    return new Map(
+      strategies.map((item) => [
+        String(item.case_idx),
+        {
+          personal_strategy: item.personal_strategy || "",
+          personal_strategy_status: item.strategy_status || null,
+        },
+      ])
+    );
+  };
+
+  const applyPersonalStrategiesToCases = (sourceCases, strategyMap, userContext) => (
+    sourceCases.map((caseItem) => {
+      const caseKey = String(caseItem.case_idx ?? caseItem.id);
+      const strategyInfo = strategyMap.get(caseKey);
+
+      if (!strategyInfo) return caseItem;
+
+      return {
+        ...caseItem,
+        personal_strategy: strategyInfo.personal_strategy,
+        personal_strategy_status: strategyInfo.personal_strategy_status,
+        personal_context: userContext,
+      };
+    })
+  );
+
   const handleSearch = async () => {
     const filters = [selectedIndustry, selectedCategory, selectedKeyword]
       .filter((val) => val && val !== "상관없음")
       .join(", ");
 
-    if (!query.trim() && !filters) return;
+    const isApplyMode = searchMode === "apply";
+    const applyContextText = buildApplyContextText();
 
-    const searchQuery = query.trim()
+    if (isApplyMode) {
+      if (!isApplyInputReady()) return;
+    } else if (!query.trim() && !filters) {
+      return;
+    }
+
+    const baseQueryText = isApplyMode ? applyContextText : query.trim();
+    const searchQuery = baseQueryText
       ? filters
-        ? `[필터조건: ${filters}] ${query.trim()}`
-        : query.trim()
+        ? `[필터조건: ${filters}] ${baseQueryText}`
+        : baseQueryText
       : filters;
 
-    const rawQueryText = query.trim();
+    const rawQueryText = baseQueryText;
     
     saveBusinessQueryHistory(rawQueryText);
+    setLoadingSearchMode(searchMode);
+    setLoadingApplyStrategy(false);
 
     const blockedRawQueryPattern =
       /(시발|씨발|ㅅㅂ|병신|새끼|개새|좆|존나|ㅈㄴ|꺼져|죽어|대머리새끼|미친|개빡|짜증)/i;
@@ -520,6 +660,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         "입력하신 문장에 부적절한 표현이 포함되어 있어요. 비즈니스 문제 중심으로 다시 작성해주세요.";
 
       setResult({
+        search_mode: isApplyMode ? "apply" : "case",
         problem_summary: noticeMessage,
         problem_types: [],
         kpis: [],
@@ -728,7 +869,22 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         return item.isRecommended || score >= 0.4;
       });
 
+      let finalMappedCases = mappedCases;
+
+      if (isApplyMode) {
+        setLoadingApplyStrategy(true);
+        const strategyMap = await requestPersonalStrategiesForCases(applyContextText, mappedCases);
+        finalMappedCases = applyPersonalStrategiesToCases(mappedCases, strategyMap, applyContextText);
+        setPersonalContext(applyContextText);
+        setPersonalStrategyToast("맞춤 전략이 생성되었습니다.");
+
+        setTimeout(() => {
+          setPersonalStrategyToast("");
+        }, 3200);
+      }
+
       setResult({
+        search_mode: isApplyMode ? "apply" : "case",
         problem_summary:
           resultStatus.message ||
           queryMeta.expected_cause ||
@@ -752,12 +908,12 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         query_idx: savedQueryIdx,
         query_meta: queryMeta,
         result_status: resultStatus,
-        cases: mappedCases,
+        cases: finalMappedCases,
         map_candidates: mappedMapCandidates,
       });
 
       if (onSearch) {
-        onSearch(mappedCases);
+        onSearch(finalMappedCases);
       }
 
       setTimeout(() => {
@@ -771,6 +927,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       setError(e.message || "추천 결과를 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
+      setLoadingApplyStrategy(false);
       setHasSearched(true);
     }
   };
@@ -900,6 +1057,10 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
   const handleClear = () => {
     setQuery("");
+    setApplyRole("");
+    setApplySituation("");
+    setApplyConstraint("");
+    setSearchMode("case");
     setResult(null);
     setError(null);
     setSelectedCase(null);
@@ -926,7 +1087,11 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   };
 
   const cases = result ? result.cases : allCases.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }));
-  const isSearchDisabled = loading || (!query.trim() && !selectedIndustry && !selectedCategory);
+  const isSearchDisabled = loading || (
+    searchMode === "apply"
+      ? !isApplyInputReady()
+      : (!query.trim() && !selectedIndustry && !selectedCategory)
+  );
 
   const recommendedCaseIds = result?.cases
     ? result.cases.map((c) => String(c.case_idx ?? c.id))
@@ -1065,6 +1230,39 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           85% { opacity: 1; }
           100% { opacity: 0; }
         }
+
+        @keyframes loadingPageFlip {
+          0% { transform: rotateY(0deg); opacity: 0.9; }
+          45% { transform: rotateY(-145deg); opacity: 0.75; }
+          100% { transform: rotateY(-180deg); opacity: 0; }
+        }
+
+        @keyframes loadingBookPulse {
+          0%, 100% { transform: translateY(0); box-shadow: 0 10px 24px rgba(232, 111, 0, 0.12); }
+          50% { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(232, 111, 0, 0.18); }
+        }
+
+        @keyframes loadingCardFloat {
+          0%, 100% { transform: translateY(0); opacity: 0.55; }
+          50% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        @keyframes loadingMagnifierScan {
+          0% { transform: translateX(-12px) translateY(3px) rotate(-8deg); }
+          50% { transform: translateX(54px) translateY(-3px) rotate(6deg); }
+          100% { transform: translateX(-12px) translateY(3px) rotate(-8deg); }
+        }
+
+        @keyframes loadingStrategySlide {
+          0% { transform: translateY(8px); opacity: 0.25; }
+          35% { transform: translateY(0); opacity: 1; }
+          100% { transform: translateY(-3px); opacity: 0.7; }
+        }
+
+        @keyframes loadingMapPulse {
+          0%, 100% { transform: scale(1); opacity: 0.5; }
+          50% { transform: scale(1.45); opacity: 1; }
+        }
       `}</style>
       <div style={styles.topSearchLayout}>
         <div style={styles.searchMainCol}>
@@ -1140,94 +1338,201 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <div style={{ ...styles.inputPanel, border: textareaFocused ? "1.5px solid #f0f0f0" : "none", position: "relative", maxWidth: 848, margin: "0 auto" }}>
-            <textarea
-              style={{
-                ...styles.textarea,
-                background: textareaFocused ? "#fff" : "#f5f5f5",
-                borderTop: textareaFocused ? "1.5px solid transparent" : "1px solid transparent",
-                borderLeft: textareaFocused ? "1.5px solid transparent" : "1px solid transparent",
-                borderRight: textareaFocused ? "1.5px solid transparent" : "1px solid transparent",
-                borderBottom: "none",
-                borderRadius: 0,
-                marginBottom: -20,
-              }}
-              placeholder="비즈니스 고민을 자유롭게 입력해주세요."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setShowQueryHistory(e.target.value.trim() === "");
-              }}
-              onFocus={() => {
-                setTextareaFocused(true);
-                setShowQueryHistory(true);
-              }}
-              onBlur={() => {
-                setTimeout(() => {
-                  setTextareaFocused(false);
-                  setShowQueryHistory(false);
-                }, 150);
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSearch(); }}
-            />
+          <div style={styles.searchModeRow}>
+            <div style={styles.searchModeHelpWrap}>
+              <button
+                type="button"
+                style={styles.searchModeHelpBtn}
+                onMouseEnter={() => setShowModeHelp(true)}
+                onMouseLeave={() => setShowModeHelp(false)}
+                onFocus={() => setShowModeHelp(true)}
+                onBlur={() => setShowModeHelp(false)}
+                aria-label="검색 모드 설명"
+              >
+                ?
+              </button>
+              {showModeHelp && (
+                <div style={styles.searchModeHelpTooltip}>
+                  {/* <p style={styles.searchModeHelpTitle}>검색 모드 차이</p> */}
 
-        </div>  {/* inputPanel 닫기 */}
+                  <div style={styles.searchModeHelpItem}>
+                    <span style={styles.searchModeHelpBadge}>관련 케이스 찾기</span>
+                    <p style={styles.searchModeHelpText}>
+                      입력한 비즈니스 고민과 유사한 DBR 케이스를 추천합니다. <br/>빠르게 참고 케이스를 찾고 싶을 때 사용합니다.
+                    </p>
+                  </div>
 
-          {textareaFocused && queryHistory.length > 0 && (
-            <div style={{
-              background: "#fff",
-              border: "1px solid #e0e0e0",
-              borderRadius: 8,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              maxHeight: 160,
-              maxWidth: 848,
-              margin: "4px auto 0",
-              overflowY: "auto",
-            }}>
-              {queryHistory.slice(0, 6).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
+                  <div style={styles.searchModeHelpItemLast}>
+                    <span style={styles.searchModeHelpBadge}>내 상황에 적용하기</span>
+                    <p style={styles.searchModeHelpText}>
+                      직무·상황·제약 조건을 바탕으로 케이스를 찾고, <br/>추천 케이스를 바탕으로 내 상황에 맞는 맞춤 전략을 제공합니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={styles.searchModeBox}>
+              <button
+                type="button"
+                style={searchMode === "case" ? styles.searchModeBtnActive : styles.searchModeBtn}
+                onClick={() => {
+                  if (loading) return;
+                  setSearchMode("case");
+                }}
+                disabled={loading}
+              >
+                관련 케이스 찾기
+              </button>
+              <button
+                type="button"
+                style={searchMode === "apply" ? styles.searchModeBtnActive : styles.searchModeBtn}
+                onClick={() => {
+                  if (loading) return;
+                  setSearchMode("apply");
+                }}
+                disabled={loading}
+              >
+                추천 케이스 내 상황에 적용하기
+              </button>
+            </div>
+          </div>
+
+          {searchMode === "case" ? (
+            <div style={styles.caseModePanel}>
+              <div style={styles.applyModeHeader}>
+                <p style={styles.applyModeTitle}>관련 케이스 찾기</p>
+                <p style={styles.applyModeDesc}>
+                  비즈니스 고민을 자유롭게 입력하면 관련 DBR 케이스를 추천합니다.
+                </p>
+              </div>
+
+              <div style={{ ...styles.inputPanel, border: textareaFocused ? "1.5px solid #f0f0f0" : "1px solid #eeeeee", position: "relative", width: "100%", maxWidth: "100%", margin: 0 }}>
+                <textarea
                   style={{
-                    width: "100%", textAlign: "left", padding: "10px 14px",
-                    background: "none", border: "none", borderBottom: "1px solid #f5f5f5",
-                    cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "#333",
-                    display: "flex", justifyContent: "space-between", alignItems: "center"
+                    ...styles.textarea,
+                    minHeight: 120,
+                    background: textareaFocused ? "#fff" : "#f5f5f5",
+                    borderTop: textareaFocused ? "1.5px solid transparent" : "1px solid transparent",
+                    borderLeft: textareaFocused ? "1.5px solid transparent" : "1px solid transparent",
+                    borderRight: textareaFocused ? "1.5px solid transparent" : "1px solid transparent",
+                    borderBottom: "none",
+                    borderRadius: 0,
+                    marginBottom: 0,
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#fef0e9"}
-                  onMouseLeave={e => e.currentTarget.style.background = "none"}
-                  onClick={() => {
-                    setQuery(item.text);
-                    setShowQueryHistory(false);
+                  placeholder="비즈니스 고민을 자유롭게 입력해주세요."
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setShowQueryHistory(e.target.value.trim() === "");
                   }}
-                >
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.text}
-                  </span>
-                  <span style={{ fontSize: 11, color: "#bbb", marginLeft: 8, flexShrink: 0 }}>
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </span>
-                </button>
-              ))}
+                  onFocus={() => {
+                    setTextareaFocused(true);
+                    setShowQueryHistory(true);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setTextareaFocused(false);
+                      setShowQueryHistory(false);
+                    }, 150);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSearch(); }}
+                />
+              </div>
+
+              {textareaFocused && queryHistory.length > 0 && (
+                <div style={styles.queryHistoryDropdown}>
+                  {queryHistory.slice(0, 6).map((item) => (
+                    <div
+                      key={item.id}
+                      style={styles.queryHistoryDropdownItem}
+                      onMouseEnter={e => e.currentTarget.style.background = "#fef0e9"}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      onClick={() => {
+                        setQuery(item.text);
+                        setShowQueryHistory(false);
+                      }}
+                    >
+                      <span style={styles.queryHistoryDropdownText}>
+                        {item.text}
+                      </span>
+                      <span style={styles.queryHistoryDropdownDate}>
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </span>
+                      <button
+                        type="button"
+                        style={styles.queryHistoryDeleteBtn}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteQueryHistory(item.id);
+                        }}
+                        aria-label="최근 검색어 삭제"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={styles.searchExampleBoxSeparate}>
+                <span style={styles.searchExampleLabel}>예시 고민</span>
+                <p key={exampleIndex} style={styles.searchExampleText}>
+                  {EXAMPLE_QUERIES[exampleIndex]}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div style={styles.applyModePanel}>
+              <div style={styles.applyModeHeader}>
+                <p style={styles.applyModeTitle}>추천 케이스 내 상황에 적용하기</p>
+                <p style={styles.applyModeDesc}>
+                  직무, 문제 상황, 제약 조건을 나눠 입력하면 추천 케이스를 찾은 뒤 맞춤 전략까지 자동으로 생성합니다.
+                  
+                </p>
+              </div>
+
+              <div style={styles.applyInputGrid}>
+                <label style={styles.applyField}>
+                  <span style={styles.applyFieldLabel}>직무 / 역할</span>
+                  <input
+                    type="text"
+                    style={styles.applyInput}
+                    value={applyRole}
+                    onChange={(e) => setApplyRole(e.target.value)}
+                    placeholder="예: 커머스 서비스 PM, CRM 담당자, 신사업 기획자"
+                    disabled={loading}
+                  />
+                </label>
+
+                <label style={styles.applyFieldWide}>
+                  <span style={styles.applyFieldLabel}>현재 문제 상황</span>
+                  <textarea
+                    style={styles.applyTextarea}
+                    value={applySituation}
+                    onChange={(e) => setApplySituation(e.target.value)}
+                    placeholder="예: 방문자와 상품 조회 수는 늘고 있지만 실제 구매 전환율이 낮아 매출 성장으로 이어지지 않고 있습니다."
+                    disabled={loading}
+                  />
+                </label>
+
+                <label style={styles.applyFieldWide}>
+                  <span style={styles.applyFieldLabel}>제약 조건 / 원하는 방향</span>
+                  <textarea
+                    style={styles.applyTextareaSmall}
+                    value={applyConstraint}
+                    onChange={(e) => setApplyConstraint(e.target.value)}
+                    placeholder="예: 가격 할인에 의존하기보다 고객 경험과 구매 여정을 개선해 전환율을 높이는 방법을 찾고 싶습니다."
+                    disabled={loading}
+                  />
+                </label>
+              </div>
             </div>
           )}
-
-          <div style={styles.btnRow}>
-
-
-          <div style={{ borderTop: "1px solid #e0e0e0", display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "#fff", overflow: "hidden" }}>
-            <span style={{ fontSize: 12, color: "#aaa", flexShrink: 0 }}>예시</span>
-            <p key={exampleIndex} style={{
-              margin: 0, fontSize: 13, color: "#888",
-              animation: "fadeInOut 2.8s ease-in-out",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {EXAMPLE_QUERIES[exampleIndex]}
-            </p>
-          </div>
-
-          </div>
-          
 
           <div style={styles.btnRow}>
             <button
@@ -1243,7 +1548,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               onMouseLeave={() => setBtnHover(false)}
               onClick={handleSearch}
               disabled={isSearchDisabled}
-            >케이스 탐색 시작</button>
+            >{searchMode === "apply" ? "맞춤 전략 생성 시작" : "케이스 탐색 시작"}</button>
           </div>
         </div>
 
@@ -1293,7 +1598,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
               <hr style={{ border: "none", borderTop: "2px solid #E86F00", margin: "0 0 12px 0" }} />
 
-              {result && (
+              {result && result.search_mode !== "apply" && (
                 <div style={styles.personalStrategyActionBox}>
                   <button
                     type="button"
@@ -1512,6 +1817,10 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
       {loading && (
         <div style={styles.fullScreenLoading}>
           <div style={styles.loadingContent}>
+            <LoadingMotionVisual
+              mode={loadingSearchMode}
+              isApplyingStrategy={loadingApplyStrategy}
+            />
             <div style={styles.progressHeader}>
               <span style={{ ...styles.loadingStatusTextCenter, flex: 1, textAlign: "center" }}>
                 {getLoadingText(progress)}
@@ -1541,6 +1850,71 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         </div>
       )}
     </>
+  );
+}
+
+function LoadingMotionVisual({ mode, isApplyingStrategy }) {
+  const isApplyMode = mode === "apply";
+
+  const visualLabel = isApplyMode
+    ? isApplyingStrategy
+      ? "전략 적용 정리"
+      : "상황 기반 탐색"
+    : "DBR 케이스 탐색";
+
+  return (
+    <div style={styles.loadingVisualWrap}>
+      <div style={styles.loadingVisualStage}>
+        <div style={styles.loadingBook} aria-hidden="true">
+          <div style={styles.loadingBookCover}>DBR</div>
+          <div style={styles.loadingBookPageBack} />
+          <div style={styles.loadingBookPageFlip} />
+        </div>
+
+        <div style={styles.loadingCardsWrap} aria-hidden="true">
+          {[0, 1, 2].map((item) => (
+            <div
+              key={item}
+              style={{
+                ...styles.loadingMiniCard,
+                animationDelay: `${item * 0.22}s`,
+              }}
+            >
+              <span style={styles.loadingMiniCardLineLong} />
+              <span style={styles.loadingMiniCardLineShort} />
+            </div>
+          ))}
+        </div>
+
+        {isApplyMode && isApplyingStrategy ? (
+          <div style={styles.loadingStrategyStack} aria-hidden="true">
+            <span style={styles.loadingStrategyChip}>문제</span>
+            <span style={{ ...styles.loadingStrategyChip, animationDelay: "0.2s" }}>전략</span>
+            <span style={{ ...styles.loadingStrategyChip, animationDelay: "0.4s" }}>실행</span>
+          </div>
+        ) : isApplyMode ? (
+          <div style={styles.loadingMapDots} aria-hidden="true">
+            {[0, 1, 2, 3].map((item) => (
+              <span
+                key={item}
+                style={{
+                  ...styles.loadingMapDot,
+                  left: [4, 26, 44, 18][item],
+                  top: [22, 6, 25, 34][item],
+                  animationDelay: `${item * 0.18}s`,
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={styles.loadingMagnifier} aria-hidden="true">
+            <span style={styles.loadingMagnifierCircle} />
+            <span style={styles.loadingMagnifierHandle} />
+          </div>
+        )}
+      </div>
+      <p style={styles.loadingVisualLabel}>{visualLabel}</p>
+    </div>
   );
 }
 
@@ -3839,6 +4213,182 @@ const styles = {
     transition: "width 0.4s ease-out"
   },
 
+  loadingVisualWrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 22,
+  },
+  loadingVisualStage: {
+    position: "relative",
+    width: 196,
+    height: 92,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingBook: {
+    position: "absolute",
+    left: 26,
+    top: 16,
+    width: 58,
+    height: 54,
+    borderRadius: "4px 8px 8px 4px",
+    background: "#fff",
+    border: "1px solid #E7E7E7",
+    transformStyle: "preserve-3d",
+    perspective: 500,
+    animation: "loadingBookPulse 2.2s ease-in-out infinite",
+    overflow: "visible",
+  },
+  loadingBookCover: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 29,
+    height: "100%",
+    borderRadius: "4px 2px 2px 4px",
+    background: "#E86F00",
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    letterSpacing: "0.02em",
+  },
+  loadingBookPageBack: {
+    position: "absolute",
+    left: 30,
+    top: 7,
+    width: 24,
+    height: 38,
+    borderRadius: "2px 6px 6px 2px",
+    background: "linear-gradient(90deg, #fff 0%, #f4f4f4 100%)",
+    border: "1px solid #eeeeee",
+  },
+  loadingBookPageFlip: {
+    position: "absolute",
+    left: 30,
+    top: 7,
+    width: 24,
+    height: 38,
+    borderRadius: "2px 6px 6px 2px",
+    background: "#fff",
+    border: "1px solid #eeeeee",
+    transformOrigin: "left center",
+    animation: "loadingPageFlip 1.65s ease-in-out infinite",
+  },
+  loadingCardsWrap: {
+    position: "absolute",
+    right: 22,
+    top: 18,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  loadingMiniCard: {
+    width: 74,
+    height: 18,
+    borderRadius: 5,
+    background: "#FAFAFA",
+    border: "1px solid #E8E8E8",
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "0 7px",
+    boxSizing: "border-box",
+    animation: "loadingCardFloat 1.6s ease-in-out infinite",
+  },
+  loadingMiniCardLineLong: {
+    display: "block",
+    width: 34,
+    height: 3,
+    borderRadius: 3,
+    background: "#D9D9D9",
+  },
+  loadingMiniCardLineShort: {
+    display: "block",
+    width: 16,
+    height: 3,
+    borderRadius: 3,
+    background: "#E86F00",
+    opacity: 0.55,
+  },
+  loadingMagnifier: {
+    position: "absolute",
+    left: 86,
+    top: 35,
+    width: 38,
+    height: 38,
+    animation: "loadingMagnifierScan 1.9s ease-in-out infinite",
+  },
+  loadingMagnifierCircle: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 22,
+    height: 22,
+    borderRadius: "50%",
+    border: "3px solid #1a1a1a",
+    background: "rgba(255,255,255,0.55)",
+  },
+  loadingMagnifierHandle: {
+    position: "absolute",
+    left: 21,
+    top: 23,
+    width: 18,
+    height: 3,
+    borderRadius: 3,
+    background: "#1a1a1a",
+    transform: "rotate(45deg)",
+    transformOrigin: "left center",
+  },
+  loadingStrategyStack: {
+    position: "absolute",
+    left: 86,
+    top: 28,
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
+  },
+  loadingStrategyChip: {
+    width: 58,
+    height: 20,
+    borderRadius: 999,
+    background: "#1a1a1a",
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: 700,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    animation: "loadingStrategySlide 1.5s ease-in-out infinite",
+  },
+  loadingMapDots: {
+    position: "absolute",
+    left: 92,
+    top: 30,
+    width: 58,
+    height: 42,
+  },
+  loadingMapDot: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+    background: "#E86F00",
+    animation: "loadingMapPulse 1.4s ease-in-out infinite",
+  },
+  loadingVisualLabel: {
+    margin: "2px 0 0",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#888",
+    letterSpacing: "0.02em",
+  },
+
   invalidNoticeContent: {
     width: 520,
     maxWidth: "calc(100vw - 40px)",
@@ -4013,5 +4563,340 @@ historyDate: {
   fontSize: 11,
   color: "#999",
 },
-};
 
+
+searchModeRow: {
+  maxWidth: 848,
+  margin: "0 auto 12px",
+  display: "flex",
+  alignItems: "stretch",
+  gap: 8,
+},
+
+searchModeHelpWrap: {
+  position: "relative",
+  flexShrink: 0,
+},
+
+searchModeHelpBtn: {
+  width: 35,
+  height: 35,
+  borderRadius: "50%",
+  border: "1px solid #fa8f51",
+  background: "#fff",
+  color: "#fa8f51",
+  fontSize: 14,
+  fontWeight: 800,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  boxShadow: "0 4px 10px rgba(0,0,0,0.06)",
+  marginTop : 10,
+  marginLeft : 2
+},
+
+searchModeHelpTooltip: {
+  position: "absolute",
+  top: 38,
+  left: 0,
+  width: 350,
+  padding: "14px 15px",
+  background: "#1f1f1f",
+  color: "#fff",
+  borderRadius: 12,
+  boxShadow: "0 14px 30px rgba(0,0,0,0.20)",
+  zIndex: 30,
+  boxSizing: "border-box",
+},
+
+searchModeHelpTitle: {
+  margin: "0 0 10px",
+  fontSize: 13,
+  fontWeight: 900,
+  color: "#fff",
+},
+
+searchModeHelpItem: {
+  padding: "0 0 10px",
+  marginBottom: 10,
+  borderBottom: "1px solid rgba(255,255,255,0.12)",
+},
+
+searchModeHelpItemLast: {
+  padding: 0,
+  margin: 0,
+},
+
+searchModeHelpBadge: {
+  display: "inline-flex",
+  alignItems: "center",
+  height: 22,
+  padding: "0 8px",
+  marginBottom: 6,
+  borderRadius: 999,
+  background: "rgba(232,111,0,0.16)",
+  color: "#FFB16A",
+  fontSize: 11,
+  fontWeight: 900,
+},
+
+searchModeHelpText: {
+  margin: 0,
+  fontSize: 12,
+  lineHeight: 1.6,
+  color: "#e5e5e5",
+},
+
+searchModeBox: {
+  flex: 1,
+  minWidth: 0,
+  display: "flex",
+  justifyContent: "center",
+  gap: 8,
+  background: "#f6f6f6",
+  border: "1px solid #eeeeee",
+  borderRadius: 14,
+  padding: 6,
+},
+
+searchModeBtn: {
+  flex: 1,
+  padding: "9px 12px",
+  border: "1px solid transparent",
+  borderRadius: 10,
+  background: "transparent",
+  color: "#777",
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  transition: "all 0.18s ease",
+},
+
+searchModeBtnActive: {
+  flex: 1,
+  padding: "9px 12px",
+  border: "1px solid #E86F00",
+  borderRadius: 10,
+  background: "#fff",
+  color: "#E86F00",
+  fontSize: 13,
+  fontWeight: 900,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  boxShadow: "0 6px 16px rgba(232,111,0,0.12)",
+  transition: "all 0.18s ease",
+},
+
+queryHistoryDropdown: {
+  background: "#fff",
+  border: "1px solid #e0e0e0",
+  borderRadius: 8,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+  maxHeight: 160,
+  maxWidth: 848,
+  margin: "4px auto 0",
+  overflowY: "auto",
+},
+
+queryHistoryDropdownItem: {
+  width: "100%",
+  textAlign: "left",
+  padding: "10px 12px",
+  background: "#fff",
+  border: "none",
+  borderBottom: "1px solid #f0f0f0",
+  cursor: "pointer",
+  fontFamily: "inherit",
+  display: "grid",
+  gridTemplateColumns: "1fr auto 26px",
+  alignItems: "center",
+  gap: 10,
+},
+
+queryHistoryDropdownText: {
+  minWidth: 5,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  fontSize: 13,
+  color: "#444",
+},
+
+queryHistoryDropdownDate: {
+  fontSize: 11,
+  color: "#aaa",
+  whiteSpace: "nowrap",
+},
+
+
+queryHistoryDeleteBtn: {
+  width: 22,
+  height: 22,
+  marginLeft: 0,
+  border: "none",
+  borderRadius: "50%",
+  background: "transparent",
+  color: "#b8b8b8",
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: "22px",
+  textAlign: "center",
+  cursor: "pointer",
+  flexShrink: 0,
+},
+
+searchExampleBar: {
+  maxWidth: 848,
+  margin: "0 auto",
+  borderTop: "1px solid #e0e0e0",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "10px 16px",
+  background: "#fff",
+  overflow: "hidden",
+},
+
+searchExampleLabel: {
+  fontSize: 12,
+  color: "#888",
+  flexShrink: 0,
+},
+
+searchExampleText: {
+  margin: 0,
+  fontSize: 13,
+  color: "#888",
+  animation: "fadeInOut 4.0s ease-in-out",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+},
+
+caseModePanel: {
+  maxWidth: 848,
+  margin: "0 auto",
+  background: "#fff",
+  border: "1px solid #eeeeee",
+  borderRadius: 14,
+  padding: 18,
+  boxSizing: "border-box",
+  boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
+},
+
+searchExampleBoxSeparate: {
+  width: "100%",
+  marginTop: 10,
+  border: "1px solid #e8e8e8",
+  borderRadius: 10,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "9px 12px",
+  background: "#fafafa",
+  overflow: "hidden",
+  boxSizing: "border-box",
+},
+
+applyModePanel: {
+  maxWidth: 848,
+  minHeight: 330,
+  margin: "0 auto",
+  background: "#fff",
+  border: "1px solid #eeeeee",
+  borderRadius: 14,
+  padding: 18,
+  boxSizing: "border-box",
+  boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
+},
+
+applyModeHeader: {
+  marginBottom: 14,
+},
+
+applyModeTitle: {
+  margin: "0 0 5px",
+  fontSize: 15,
+  fontWeight: 900,
+  color: "#1a1a1a",
+},
+
+applyModeDesc: {
+  margin: 0,
+  fontSize: 13,
+  lineHeight: 1.6,
+  color: "#777",
+},
+
+applyInputGrid: {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: 12,
+},
+
+applyField: {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  fontFamily: "inherit",
+},
+
+applyFieldWide: {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  fontFamily: "inherit",
+},
+
+applyFieldLabel: {
+  fontSize: 12,
+  fontWeight: 850,
+  color: "#E86F00",
+},
+
+applyInput: {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1px solid #e6e6e6",
+  borderRadius: 10,
+  padding: "12px 13px",
+  fontSize: 14,
+  lineHeight: 1.5,
+  color: "#333",
+  background: "#fafafa",
+  outline: "none",
+  fontFamily: "inherit",
+},
+
+applyTextarea: {
+  width: "100%",
+  minHeight: 70,
+  resize: "vertical",
+  boxSizing: "border-box",
+  border: "1px solid #e6e6e6",
+  borderRadius: 10,
+  padding: "12px 13px",
+  fontSize: 14,
+  lineHeight: 1.6,
+  color: "#333",
+  background: "#fafafa",
+  outline: "none",
+  fontFamily: "inherit",
+},
+
+applyTextareaSmall: {
+  width: "100%",
+  minHeight: 70,
+  resize: "vertical",
+  boxSizing: "border-box",
+  border: "1px solid #e6e6e6",
+  borderRadius: 10,
+  padding: "12px 13px",
+  fontSize: 14,
+  lineHeight: 1.6,
+  color: "#333",
+  background: "#fafafa",
+  outline: "none",
+  fontFamily: "inherit",
+},
+};
