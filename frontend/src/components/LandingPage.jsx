@@ -77,7 +77,7 @@ const styles = {
     background: ORANGE,
     color: "#fff",
     border: "none",
-    borderRadius: 2,
+    borderRadius: 12,
     fontSize: 15,
     fontWeight: 600,
     cursor: "pointer",
@@ -87,7 +87,7 @@ const styles = {
     background: "transparent",
     color: "#1a1a1a",
     border: "0.5px solid #d0c8bf",
-    borderRadius: 2,
+    borderRadius: 12,
     fontSize: 15,
     fontWeight: 500,
     cursor: "pointer",
@@ -117,16 +117,16 @@ const styles = {
     padding: "0 36px 40px",
   },
   featureCard: {
-    background: "#f5f5f5",
-    border: "0.5px solid #ede8e2",
-    borderRadius: 2,
+    background: "#f0f0f0",
+    border: "none",
+    borderRadius: 12,
     padding: 20,
     transition: "border-color 0.2s",
   },
   featureIcon: {
     width: 36,
     height: 36,
-    borderRadius: 2,
+    borderRadius: 12,
     background: ORANGE_LIGHT,
     display: "flex",
     alignItems: "center",
@@ -155,11 +155,11 @@ const styles = {
 };
 
 const STATS = [
-  { num: "120+", label: "DBR 케이스 스터디" },
+  { num: "120+ 케이스", label: "DBR 케이스 스터디 지금 바로 탐색 가능" },
 
-  { num: "2021–2026", label: "DBR 아카이브" },
-  { num: "3 클릭", label: "목표 탐색 뎁스" },
-  { num: "상위 5건", label: "추천 케이스 수" },
+  { num: "2021–2026", label: "최신 트렌드까지 커버" },
+  { num: "3번이면 충분", label: "원하는 케이스까지" },
+  { num: "상위 5건", label: "핵심만 추려서" },
 ];
 
 const FEATURES = [
@@ -234,7 +234,7 @@ export default function LandingPage({ onStart, onAbout }) {
         </p>
         <div style={styles.heroActions}>
           <button
-            style={{ ...styles.btnPrimary, background: primaryHover ? ORANGE_DARK : ORANGE }}
+            style={{ ...styles.btnPrimary, opacity: primaryHover ? 0.82 : 1 }}
             onMouseEnter={() => setPrimaryHover(true)}
             onMouseLeave={() => setPrimaryHover(false)}
             onClick={onStart}
@@ -278,7 +278,6 @@ export default function LandingPage({ onStart, onAbout }) {
             key={i}
             style={{
               ...styles.featureCard,
-              borderColor: hoveredCard === i ? "#f5a882" : "#ede8e2",
             }}
             onMouseEnter={() => setHoveredCard(i)}
             onMouseLeave={() => setHoveredCard(null)}

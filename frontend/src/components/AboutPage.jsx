@@ -53,7 +53,7 @@ const styles = {
   },
   featCard: {
     border: "0.5px solid #ede8e2",
-    borderRadius: 2,
+    borderRadius: 12,
     padding: 18,
     display: "flex",
     gap: 14,
@@ -62,7 +62,7 @@ const styles = {
   featIcon: {
     width: 38,
     height: 38,
-    borderRadius: 2,
+    borderRadius: 12,
     background: ORANGE_LIGHT,
     display: "flex",
     alignItems: "center",
@@ -89,7 +89,7 @@ const styles = {
   },
   showcaseCard: {
     border: "0.5px solid #ede8e2",
-    borderRadius: 2,
+    borderRadius: 12,
     overflow: "hidden",
   },
   showcaseInput: {
@@ -122,7 +122,7 @@ const styles = {
     margin: "2px 3px 2px 0",
     background: ORANGE_LIGHT,
     color: "#C44010",
-    borderRadius: 2,
+    borderRadius: 12,
     fontSize: 14,
   },
   tipGrid: {
@@ -134,13 +134,13 @@ const styles = {
   tipCardGood: {
     background: "#f0faf5",
     border: "0.5px solid #9FE1CB",
-    borderRadius: 2,
+    borderRadius: 12,
     padding: "16px 18px",
   },
   tipCardBad: {
     background: "#fef5f5",
     border: "0.5px solid #F7C1C1",
-    borderRadius: 2,
+    borderRadius: 12,
     padding: "16px 18px",
   },
   tipBadgeGood: {
@@ -173,7 +173,7 @@ const styles = {
   },
   faqCard: {
     border: "0.5px solid #ede8e2",
-    borderRadius: 2,
+    borderRadius: 12,
     padding: "4px 20px",
     marginTop: 20,
   },
@@ -197,7 +197,7 @@ const styles = {
   ctaBox: {
     background: "#ffffff",
     border: `0.5px solid #E86F00`,
-    borderRadius: 2,
+    borderRadius: 12,
     padding: "24px 28px",
     display: "flex",
     alignItems: "center",
@@ -216,7 +216,7 @@ const styles = {
     background: ORANGE,
     color: "#fff",
     border: "none",
-    borderRadius: 2,
+    borderRadius: 12,
     fontSize: 15,
     fontWeight: 600,
     cursor: "pointer",

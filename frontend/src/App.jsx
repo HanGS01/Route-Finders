@@ -17,6 +17,8 @@ function App() {
   const [searchedCases, setSearchedCases] = useState([]);
   const [member, setMember] = useState(null);
   const [bookmarkCount, setBookmarkCount] = useState(0);
+  const [signupHover, setSignupHover] = useState(false);
+  const [loginHover, setLoginHover] = useState(false);
 
   const fetchBookmarkCount = async () => {
     const token = localStorage.getItem("token");
@@ -162,7 +164,7 @@ function App() {
     <div>
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 0, height: 72, borderBottom: "1px solid #e8e8e8",
+        padding: 0, height: 72,
         background: "#fff", position: "sticky", top: 0, zIndex: 100,
         boxSizing: "border-box",
       }}>
@@ -233,7 +235,7 @@ function App() {
                   {member.nickname || member.email}님
                 </span>
                 <button
-                  style={{ padding: "8px 16px", fontSize: 14, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ padding: "8px 16px", fontSize: 14, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}
                   onClick={handleLogout}
                 >
                   로그아웃
@@ -242,13 +244,17 @@ function App() {
             ) : (
               <>
                 <button
-                  style={{ padding: "8px 16px", fontSize: 14, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 2, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ padding: "8px 16px", fontSize: 14, color: "#666", background: "transparent", border: "1px solid #e0e0e0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", background: loginHover ? "#faf7f4" : "transparent" }}
+                  onMouseEnter={() => setLoginHover(true)}
+                  onMouseLeave={() => setLoginHover(false)}
                   onClick={() => navigateTo("login")}
                 >
                   로그인
                 </button>
                 <button
-                  style={{ padding: "8px 16px", fontSize: 14, color: "#fff", background: "#E86F00", border: "none", borderRadius: 2, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+                  style={{ padding: "8px 16px", fontSize: 14, color: "#fff", background: "#E86F00", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 500, opacity: signupHover ? 0.82 : 1 }}
+                  onMouseEnter={() => setSignupHover(true)}
+                  onMouseLeave={() => setSignupHover(false)}
                   onClick={() => navigateTo("signup")}
                 >
                   회원가입
