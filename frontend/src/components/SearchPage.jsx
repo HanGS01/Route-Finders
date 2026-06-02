@@ -70,8 +70,12 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [loadingApplyStep, setLoadingApplyStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [queryHistory, setQueryHistory] = useState([]);
+  const [applyRoleHistory, setApplyRoleHistory] = useState([]);
+  const [applySituationHistory, setApplySituationHistory] = useState([]);
+  const [applyConstraintHistory, setApplyConstraintHistory] = useState([]);
   const [historyFilter, setHistoryFilter] = useState("today");
   const [showQueryHistory, setShowQueryHistory] = useState(false);
+  const [focusedApplyField, setFocusedApplyField] = useState(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -113,13 +117,38 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
   const [browseHover, setBrowseHover] = useState(false);
   const [showSelectedList, setShowSelectedList] = useState(false);
   const resultSectionRef = useRef(null);
+  const applyHistoryAreaRef = useRef(null);
 
   const [exampleIndex, setExampleIndex] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
 
   useEffect(() => {
     const savedHistory = JSON.parse(localStorage.getItem("businessQueryHistory") || "[]");
+    const savedApplyRoleHistory = JSON.parse(localStorage.getItem("businessApplyRoleHistory") || "[]");
+    const savedApplySituationHistory = JSON.parse(localStorage.getItem("businessApplySituationHistory") || "[]");
+    const savedApplyConstraintHistory = JSON.parse(localStorage.getItem("businessApplyConstraintHistory") || "[]");
+
     setQueryHistory(savedHistory);
+    setApplyRoleHistory(savedApplyRoleHistory);
+    setApplySituationHistory(savedApplySituationHistory);
+    setApplyConstraintHistory(savedApplyConstraintHistory);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutsideApplyHistory = (event) => {
+      if (
+        applyHistoryAreaRef.current &&
+        !applyHistoryAreaRef.current.contains(event.target)
+      ) {
+        setFocusedApplyField(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutsideApplyHistory);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutsideApplyHistory);
+    };
   }, []);
 
   useEffect(() => {
@@ -553,6 +582,57 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     setQueryHistory(updatedHistory);
   };
 
+  const getApplyHistoryConfig = (field) => {
+    const configMap = {
+      role: {
+        storageKey: "businessApplyRoleHistory",
+        history: applyRoleHistory,
+        setter: setApplyRoleHistory,
+        valueSetter: setApplyRole,
+      },
+      situation: {
+        storageKey: "businessApplySituationHistory",
+        history: applySituationHistory,
+        setter: setApplySituationHistory,
+        valueSetter: setApplySituation,
+      },
+      constraint: {
+        storageKey: "businessApplyConstraintHistory",
+        history: applyConstraintHistory,
+        setter: setApplyConstraintHistory,
+        valueSetter: setApplyConstraint,
+      },
+    };
+
+    return configMap[field] || null;
+  };
+
+  const saveApplyFieldHistory = (field, text) => {
+    const trimmedText = text.trim();
+    const config = getApplyHistoryConfig(field);
+
+    if (!trimmedText || !config) return;
+
+    const newItem = {
+      id: Date.now(),
+      text: trimmedText,
+      created_at: new Date().toISOString(),
+    };
+
+    const savedHistory = JSON.parse(localStorage.getItem(config.storageKey) || "[]");
+    const filteredHistory = savedHistory.filter((item) => item.text !== trimmedText);
+    const updatedHistory = [newItem, ...filteredHistory].slice(0, 10);
+
+    localStorage.setItem(config.storageKey, JSON.stringify(updatedHistory));
+    config.setter(updatedHistory);
+  };
+
+  const saveBusinessApplyHistory = () => {
+    saveApplyFieldHistory("role", applyRole);
+    saveApplyFieldHistory("situation", applySituation);
+    saveApplyFieldHistory("constraint", applyConstraint);
+  };
+
 
   const handleDeleteQueryHistory = (historyId) => {
     const updatedHistory = queryHistory.filter((item) => item.id !== historyId);
@@ -560,6 +640,72 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     setQueryHistory(updatedHistory);
     setTextareaFocused(true);
     setShowQueryHistory(true);
+  };
+
+  const handleDeleteApplyFieldHistory = (field, historyId) => {
+    const config = getApplyHistoryConfig(field);
+
+    if (!config) return;
+
+    const updatedHistory = config.history.filter((item) => item.id !== historyId);
+    localStorage.setItem(config.storageKey, JSON.stringify(updatedHistory));
+    config.setter(updatedHistory);
+    setFocusedApplyField(field);
+  };
+
+  const handleSelectApplyFieldHistory = (field, text) => {
+    const config = getApplyHistoryConfig(field);
+
+    if (!config) return;
+
+    config.valueSetter(text || "");
+    setFocusedApplyField(null);
+  };
+
+  const renderApplyFieldHistory = (field) => {
+    const config = getApplyHistoryConfig(field);
+
+    if (!config || focusedApplyField !== field || config.history.length === 0) return null;
+
+    return (
+      <div style={styles.applyFieldHistoryDropdown}>
+        {config.history.slice(0, 6).map((item) => (
+          <div
+            key={item.id}
+            style={styles.applyFieldHistoryItem}
+            onMouseEnter={e => e.currentTarget.style.background = "#fef0e9"}
+            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSelectApplyFieldHistory(field, item.text);
+            }}
+          >
+            <span style={styles.applyFieldHistoryText}>{item.text}</span>
+            <span style={styles.applyFieldHistoryDate}>{new Date(item.created_at).toLocaleDateString()}</span>
+            <button
+              type="button"
+              style={styles.applyFieldHistoryDeleteBtn}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteApplyFieldHistory(field, item.id);
+              }}
+              aria-label="최근 입력 삭제"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const buildApplyContextText = () => {
@@ -667,7 +813,11 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
 
     const rawQueryText = baseQueryText;
     
-    saveBusinessQueryHistory(rawQueryText);
+    if (isApplyMode) {
+      saveBusinessApplyHistory();
+    } else {
+      saveBusinessQueryHistory(rawQueryText);
+    }
     setLoadingSearchMode(searchMode);
     setLoadingApplyStrategy(false);
 
@@ -1213,7 +1363,10 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     const enrichedCase = enrichCaseForSelection(caseData);
     if (!enrichedCase) return;
 
-    setSelectedCase(enrichedCase);
+    setSelectedCase({
+      ...enrichedCase,
+      _view_source: viewSource,
+    });
     saveCaseViewLog(enrichedCase, viewSource);
   };
 
@@ -1521,7 +1674,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               </div>
             </div>
           ) : (
-            <div style={styles.applyModePanel}>
+            <div style={styles.applyModePanel} ref={applyHistoryAreaRef}>
               <div style={styles.applyModeHeader}>
                 <p style={styles.applyModeTitle}>추천 케이스 내 상황에 적용하기</p>
                 <p style={styles.applyModeDesc}>
@@ -1531,39 +1684,51 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               </div>
 
               <div style={styles.applyInputGrid}>
-                <label style={styles.applyField}>
-                  <span style={styles.applyFieldLabel}>내 역할</span>
-                  <input
-                    type="text"
-                    style={styles.applyInput}
-                    value={applyRole}
-                    onChange={(e) => setApplyRole(e.target.value)}
-                    placeholder="예: 커머스 서비스 PM"
-                    disabled={loading}
-                  />
-                </label>
+                <div style={styles.applyFieldWrap}>
+                  <label style={styles.applyField}>
+                    <span style={styles.applyFieldLabel}>내 역할</span>
+                    <input
+                      type="text"
+                      style={styles.applyInput}
+                      value={applyRole}
+                      onChange={(e) => setApplyRole(e.target.value)}
+                      onFocus={() => setFocusedApplyField("role")}
+                      placeholder="예: 커머스 서비스 PM"
+                      disabled={loading}
+                    />
+                  </label>
+                  {renderApplyFieldHistory("role")}
+                </div>
 
-                <label style={styles.applyFieldWide}>
-                  <span style={styles.applyFieldLabel}>현재 고민</span>
-                  <textarea
-                    style={styles.applyTextarea}
-                    value={applySituation}
-                    onChange={(e) => setApplySituation(e.target.value)}
-                    placeholder="예: 방문자는 늘고 있는데 실제 구매 전환율이 낮아 매출로 잘 이어지지 않아요."
-                    disabled={loading}
-                  />
-                </label>
+                <div style={styles.applyFieldWrapWide}>
+                  <label style={styles.applyFieldWide}>
+                    <span style={styles.applyFieldLabel}>현재 고민</span>
+                    <textarea
+                      style={styles.applyTextarea}
+                      value={applySituation}
+                      onChange={(e) => setApplySituation(e.target.value)}
+                      onFocus={() => setFocusedApplyField("situation")}
+                      placeholder="예: 방문자는 늘고 있는데 실제 구매 전환율이 낮아 매출로 잘 이어지지 않아요."
+                      disabled={loading}
+                    />
+                  </label>
+                  {renderApplyFieldHistory("situation")}
+                </div>
 
-                <label style={styles.applyFieldWide}>
-                  <span style={styles.applyFieldLabel}>제약 조건 / 원하는 방향</span>
-                  <textarea
-                    style={styles.applyTextareaSmall}
-                    value={applyConstraint}
-                    onChange={(e) => setApplyConstraint(e.target.value)}
-                    placeholder="예: 가격 할인보다 고객 경험을 개선해서 전환율을 높이고 싶어요."
-                    disabled={loading}
-                  />
-                </label>
+                <div style={styles.applyFieldWrapWide}>
+                  <label style={styles.applyFieldWide}>
+                    <span style={styles.applyFieldLabel}>제약 조건 / 원하는 방향</span>
+                    <textarea
+                      style={styles.applyTextareaSmall}
+                      value={applyConstraint}
+                      onChange={(e) => setApplyConstraint(e.target.value)}
+                      onFocus={() => setFocusedApplyField("constraint")}
+                      placeholder="예: 가격 할인보다 고객 경험을 개선해서 전환율을 높이고 싶어요."
+                      disabled={loading}
+                    />
+                  </label>
+                  {renderApplyFieldHistory("constraint")}
+                </div>
               </div>
             </div>
           )}
@@ -1702,13 +1867,13 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
               onMouseEnter={() => setBrowseHover(true)}
               onMouseLeave={() => setBrowseHover(false)}
             >
-              DBR 전체 케이스 펼쳐보기
+              DBR 전체 케이스 확인하기
             </button>
           </div>
         ) : (
           <div style={styles.allListWrapper}>
             <div style={styles.allListHeader}>
-              <h2 style={styles.allListTitle}>DBR 전체 케이스 아카이브</h2>
+              <h2 style={styles.allListTitle}>DBR 전체 케이스</h2>
               <button style={styles.btnCloseAll} onClick={() => { setShowAllList(false); setVisibleCount(10); }}>접기 ✕</button>
             </div>
             
@@ -1788,6 +1953,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           onClose={() => setSelectedCase(null)}
           hasRecommendationResult={!!result?.cases?.length}
           isTopRecommendedCase={recommendedCaseIds.includes(String(selectedCase.case_idx ?? selectedCase.id))}
+          isArchiveCase={selectedCase?._view_source === "archive"}
           onOpenPersonalStrategy={() => {
             setPersonalStrategyError(null);
             setShowPersonalStrategyModal(true);
@@ -2549,6 +2715,7 @@ function CasePanel({
   onClose,
   hasRecommendationResult = false,
   isTopRecommendedCase = false,
+  isArchiveCase = false,
   onOpenPersonalStrategy,
 }) {
   const [linkHover, setLinkHover] = useState(false); 
@@ -2578,11 +2745,15 @@ function CasePanel({
   };
 
   const getPersonalStrategyEmptyMessage = () => {
+    if (isArchiveCase) {
+      return "맞춤 전략은 추천케이스 TOP5에서만 확인할 수 있어요.";
+    }
+
     if (hasRecommendationResult && !isTopRecommendedCase) {
       return "맞춤 전략은 추천 TOP5 케이스에서만 확인할 수 있어요.";
     }
 
-    return "현재 상황을 입력하면, 이 케이스를 어떻게 활용할 수 있을지 정리해드려요.";
+    return "현재 상황을 입력하면, 맞춤 전략을 정리해드려요.";
   };
 
   return (
@@ -4017,7 +4188,9 @@ const styles = {
   personalStrategyGuide: { margin: "8px 0 0", fontSize: 12, color: "#777", lineHeight: 1.5 },
   personalStrategyEmptyBox: { background: "#fff", border: "1px dashed #dedede", borderRadius: 6, padding: "13px 14px", marginBottom: 12 },
   personalStrategyEmptyTitle: { margin: "0 0 7px", fontSize: 13, fontWeight: 800, color: "#777" },
-  personalStrategyEmptyText: { margin: 0, fontSize: 13, lineHeight: 1.65, color: "#999", wordBreak: "keep-all" },
+  personalStrategyEmptyText: { margin: 0, fontSize: 13, lineHeight: 1.65, color: "#999", wordBreak: "keep-all",
+    whiteSpace: "pre-line",
+  },
   personalStrategyApplyBtn: { width: "100%", marginTop: 10, padding: "10px 12px", fontSize: 13, fontWeight: 800, color: "#fff", background: "#E86F00", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: "inherit" },
   comparePersonalBox: { background: "#fff", border: "1px solid #d9e7dc", borderLeft: "3px solid #4A8F57", borderRadius: 6, padding: "12px 13px" },
   comparePersonalTitle: { margin: "0 0 7px", fontSize: 12, fontWeight: 900, color: "#2F6F3A" },
@@ -4907,7 +5080,18 @@ applyInputGrid: {
   gap: 9,
 },
 
+applyFieldWrap: {
+  position: "relative",
+  width: "100%",
+},
+
+applyFieldWrapWide: {
+  position: "relative",
+  width: "100%",
+},
+
 applyField: {
+  position: "relative",
   display: "flex",
   flexDirection: "column",
   gap: 5,
@@ -4915,6 +5099,7 @@ applyField: {
 },
 
 applyFieldWide: {
+  position: "relative",
   display: "flex",
   flexDirection: "column",
   gap: 5,
@@ -4971,5 +5156,138 @@ applyTextareaSmall: {
   background: "#fafafa",
   outline: "none",
   fontFamily: "inherit",
+},
+
+applyFieldHistoryDropdown: {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: "100%",
+  zIndex: 30,
+  background: "#fff",
+  border: "1px solid #e0e0e0",
+  borderRadius: 8,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+  maxHeight: 160,
+  marginTop: 4,
+  overflowY: "auto",
+},
+
+applyFieldHistoryItem: {
+  width: "100%",
+  textAlign: "left",
+  padding: "10px 12px",
+  background: "#fff",
+  border: "none",
+  borderBottom: "1px solid #f0f0f0",
+  cursor: "pointer",
+  fontFamily: "inherit",
+  display: "grid",
+  gridTemplateColumns: "1fr auto 26px",
+  alignItems: "center",
+  gap: 10,
+  boxSizing: "border-box",
+},
+
+applyFieldHistoryText: {
+  minWidth: 5,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  fontSize: 13,
+  color: "#444",
+},
+
+applyFieldHistoryDate: {
+  fontSize: 11,
+  color: "#aaa",
+  whiteSpace: "nowrap",
+},
+
+applyFieldHistoryDeleteBtn: {
+  width: 22,
+  height: 22,
+  marginLeft: 0,
+  border: "none",
+  borderRadius: "50%",
+  background: "transparent",
+  color: "#b8b8b8",
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: "22px",
+  textAlign: "center",
+  cursor: "pointer",
+  flexShrink: 0,
+},
+
+applyHistoryBox: {
+  marginTop: 12,
+  border: "1px solid #eeeeee",
+  borderRadius: 12,
+  background: "#fafafa",
+  padding: "10px 12px",
+},
+
+applyHistoryHeader: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 8,
+},
+
+applyHistoryTitle: {
+  fontSize: 12,
+  fontWeight: 850,
+  color: "#E86F00",
+},
+
+applyHistoryList: {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+},
+
+applyHistoryItem: {
+  width: "100%",
+  display: "grid",
+  gridTemplateColumns: "1fr auto 24px",
+  alignItems: "center",
+  gap: 8,
+  border: "1px solid #eeeeee",
+  borderRadius: 10,
+  background: "#fff",
+  padding: "8px 10px",
+  textAlign: "left",
+  cursor: "pointer",
+  fontFamily: "inherit",
+},
+
+applyHistoryText: {
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  fontSize: 12.5,
+  color: "#555",
+},
+
+applyHistoryDate: {
+  fontSize: 11,
+  color: "#aaa",
+  whiteSpace: "nowrap",
+},
+
+applyHistoryDeleteBtn: {
+  width: 22,
+  height: 22,
+  border: "none",
+  borderRadius: "50%",
+  background: "transparent",
+  color: "#b8b8b8",
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: "22px",
+  textAlign: "center",
+  cursor: "pointer",
 },
 };

@@ -121,13 +121,17 @@ function App() {
   }, []);
 
   // 검색 결과가 있을 때(검색 완료 시) 말풍선을 띄우고 7초 뒤에 숨김
-  useEffect(() => {
-    if (searchedCases && searchedCases.length > 0) {
-      setShowTooltip(true);
-      // const timer = setTimeout(() => setShowTooltip(false), 7000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchedCases]);
+useEffect(() => {
+  if (searchedCases && searchedCases.length > 0) {
+    setShowTooltip(true);
+
+    const timer = setTimeout(() => {
+      setShowTooltip(false);
+    }, 7000);
+
+    return () => clearTimeout(timer);
+  }
+}, [searchedCases]);
 
   const navigateTo = (pageName) => {
     if (page === pageName) return; 
