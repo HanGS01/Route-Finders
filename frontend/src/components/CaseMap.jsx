@@ -163,6 +163,22 @@ function getReadableRank(item) {
   return rank;
 }
 
+function getIssueNumber(item) {
+  const rawIssueNo = String(item.issue_no ?? item.issueNo ?? "").replace(/[^0-9]/g, "");
+  const issueNo = Number(rawIssueNo);
+  return Number.isFinite(issueNo) ? issueNo : 0;
+}
+
+function getViewCount(item) {
+  const viewCount = Number(item.view_count ?? item.viewCount ?? item.views ?? 0);
+  return Number.isFinite(viewCount) ? viewCount : 0;
+}
+
+function getPublishedYear(item) {
+  const year = Number(item.pub_year ?? item.pubYear ?? item.year ?? 0);
+  return Number.isFinite(year) ? year : 0;
+}
+
 function getRankRadiusRange(rank, score) {
   // TOP5는 "가까운 추천" 영역 안에서만 순서를 살짝 보정한다.
   // 완전한 줄 세우기는 하지 않고, 반지름 범위만 제한해서 자연스러운 방향성은 유지한다.
@@ -377,6 +393,8 @@ export default function CaseMap({
     strategy: "유사도 거리",
   });
   const [dimensions, setDimensions] = useState({ width: 1000, height: 700 });
+  const [showDynamicCaseList, setShowDynamicCaseList] = useState(false);
+  const [dynamicCaseSort, setDynamicCaseSort] = useState("relevance");
 
   useEffect(() => {
     onCaseClickRef.current = onCaseClick;
@@ -1742,6 +1760,37 @@ export default function CaseMap({
     setViewMode(nextMode);
   };
 
+  const sortedDynamicCases = useMemo(() => {
+    const getRelatedScore = (item) => getMapScore(item) ?? 0;
+    const getRankScore = (item) => {
+      const rank = Number(item.map_rank ?? item.mapRank ?? item.rank ?? item.ranking ?? 999);
+      return Number.isFinite(rank) ? rank : 999;
+    };
+
+    return [...dynamicCases].sort((a, b) => {
+      if (dynamicCaseSort === "latest") {
+        return (
+          getPublishedYear(b) - getPublishedYear(a) ||
+          getIssueNumber(b) - getIssueNumber(a) ||
+          getRelatedScore(b) - getRelatedScore(a)
+        );
+      }
+
+      if (dynamicCaseSort === "views") {
+        return (
+          getViewCount(b) - getViewCount(a) ||
+          getRelatedScore(b) - getRelatedScore(a) ||
+          getRankScore(a) - getRankScore(b)
+        );
+      }
+
+      return (
+        getRelatedScore(b) - getRelatedScore(a) ||
+        getRankScore(a) - getRankScore(b)
+      );
+    });
+  }, [dynamicCases, dynamicCaseSort]);
+
   const hasDynamicMap = dynamicCases.length > 0;
 
   return (
@@ -1841,6 +1890,84 @@ export default function CaseMap({
           </>
         )}
       </div>
+
+      {viewMode === "dynamic" && hasDynamicMap && (
+        <div style={styles.dynamicCaseListSection}>
+          <button
+            type="button"
+            style={styles.dynamicCaseListToggle}
+            onClick={() => setShowDynamicCaseList((prev) => !prev)}
+          >
+            <span style={styles.dynamicCaseListToggleTitle}>지도에 표시된 케이스 {dynamicCases.length}개</span>
+            <span style={styles.dynamicCaseListToggleText}>{showDynamicCaseList ? "접기" : "보기"}</span>
+          </button>
+
+          {showDynamicCaseList && (
+            <div style={styles.dynamicCaseListPanel}>
+              <div style={styles.dynamicCaseListHeader}>
+                <div>
+                  <p style={styles.dynamicCaseListTitle}>탐색형 맵 케이스</p>
+                  <p style={styles.dynamicCaseListDesc}>지도에 표시된 추천·연관 케이스만 모아봤어요.</p>
+                </div>
+
+                <select
+                  value={dynamicCaseSort}
+                  onChange={(event) => setDynamicCaseSort(event.target.value)}
+                  style={styles.dynamicCaseSortSelect}
+                  aria-label="탐색형 맵 케이스 정렬"
+                >
+                  <option value="relevance">관련도순</option>
+                  <option value="latest">최신순</option>
+                  <option value="views">조회순</option>
+                </select>
+              </div>
+
+              <div style={styles.dynamicCaseList}>
+                {sortedDynamicCases.map((item, index) => {
+                  const topRank = getTopRank(item);
+                  const score = getMapScore(item);
+                  const scorePercent = score !== null ? Math.round(score * 100) : null;
+                  const viewCount = getViewCount(item);
+                  const issueNo = item.issue_no || item.issueNo || "-";
+                  const pubYear = item.pub_year || item.pubYear || item.year || "-";
+                  const selected = getCaseIdentity(item) === selectedCaseKey;
+
+                  return (
+                    <button
+                      key={`${item.case_idx || item.id || item.title}-${index}`}
+                      type="button"
+                      style={selected ? styles.dynamicCaseListItemActive : styles.dynamicCaseListItem}
+                      onClick={() => notifyCaseSelect(item)}
+                    >
+                      <div style={styles.dynamicCaseListItemTop}>
+                        <div style={styles.dynamicCaseListItemTitleWrap}>
+                          {topRank && <span style={styles.dynamicCaseTopBadge}>TOP {topRank}</span>}
+                          <span style={styles.dynamicCaseListItemTitle}>{item.title}</span>
+                        </div>
+                        {scorePercent !== null && (
+                          <span style={styles.dynamicCaseScore}>관련도 {scorePercent}%</span>
+                        )}
+                      </div>
+
+                      <div style={styles.dynamicCaseListItemMeta}>
+                        <span>{item.company}</span>
+                        <span>{item.industry}</span>
+                        <span>{item.prob_main}</span>
+                        {item.prob_keyword && <span>{item.prob_keyword}</span>}
+                      </div>
+
+                      <div style={styles.dynamicCaseListItemSub}>
+                        <span>{pubYear}년 · No. {issueNo}</span>
+                        <span>조회 {viewCount.toLocaleString()}회</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1992,6 +2119,151 @@ const styles = {
     color: "#E86F00",
     fontWeight: 700,
     marginTop: 4,
+  },
+  dynamicCaseListSection: {
+    marginTop: 10,
+    background: "#fff",
+    border: "0.5px solid #e5e7eb",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  dynamicCaseListToggle: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "13px 16px",
+    border: "none",
+    background: "#fff",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  dynamicCaseListToggleTitle: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#111827",
+  },
+  dynamicCaseListToggleText: {
+    fontSize: 13,
+    fontWeight: 800,
+    color: "#E86F00",
+  },
+  dynamicCaseListPanel: {
+    borderTop: "0.5px solid #eeeeee",
+    padding: 14,
+    background: "#fbfbfb",
+  },
+  dynamicCaseListHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  dynamicCaseListTitle: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#1f2937",
+    margin: 0,
+  },
+  dynamicCaseListDesc: {
+    fontSize: 12,
+    color: "#9ca3af",
+    margin: "4px 0 0",
+  },
+  dynamicCaseSortSelect: {
+    height: 34,
+    border: "1px solid #e5e7eb",
+    borderRadius: 6,
+    background: "#fff",
+    padding: "0 10px",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#374151",
+    fontFamily: "inherit",
+    outline: "none",
+    cursor: "pointer",
+  },
+  dynamicCaseList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    maxHeight: 360,
+    overflowY: "auto",
+  },
+  dynamicCaseListItem: {
+    width: "100%",
+    textAlign: "left",
+    border: "1px solid #eeeeee",
+    background: "#fff",
+    borderRadius: 8,
+    padding: "11px 12px",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  dynamicCaseListItemActive: {
+    width: "100%",
+    textAlign: "left",
+    border: "1px solid #fed7aa",
+    background: "#fff7ed",
+    borderRadius: 8,
+    padding: "11px 12px",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  dynamicCaseListItemTop: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 7,
+  },
+  dynamicCaseListItemTitleWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 0,
+  },
+  dynamicCaseTopBadge: {
+    flex: "0 0 auto",
+    display: "inline-flex",
+    alignItems: "center",
+    height: 20,
+    padding: "0 7px",
+    borderRadius: 999,
+    background: "#111827",
+    color: "#fff",
+    fontSize: 10.5,
+    fontWeight: 900,
+  },
+  dynamicCaseListItemTitle: {
+    fontSize: 13.5,
+    fontWeight: 800,
+    color: "#111827",
+    lineHeight: 1.35,
+  },
+  dynamicCaseScore: {
+    flex: "0 0 auto",
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#E86F00",
+  },
+  dynamicCaseListItemMeta: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "5px 8px",
+    fontSize: 11.5,
+    color: "#6b7280",
+    marginBottom: 7,
+  },
+  dynamicCaseListItemSub: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    fontSize: 11.5,
+    color: "#9ca3af",
   },
   zoomControls: {
     position: "absolute",
