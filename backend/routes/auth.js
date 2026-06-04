@@ -70,7 +70,7 @@ passport.use(
 // 구글 로그인 시작
 router.get(
   "/google",
-  passport.authenticate("google", { scope: ["profile", "email"], session: false })
+  passport.authenticate("google", { scope: ["profile", "email"], session: false, prompt: "select_account" })
 );
 
 // 구글 콜백
