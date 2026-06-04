@@ -24,20 +24,20 @@ const EXAMPLE_QUERIES = [
 ];
 
 const HERO_KEYWORDS = [
-  "떠나는 고객 문제가",
+  "반복되는 고객 이탈이",
   "오르지 않는 매출이",
   "낮은 구매 전환율이",
   "오래된 브랜드 이미지가",
-  "막막한 시장 진입 문제가",
-  "줄어드는 재방문이",
+  "새로운 성장 방향이",
+  "줄어드는 재방문율이",
   "늘어나는 운영 비용이",
-  "정체된 성장이",
+  "정체된 성장세가",
 ];
 
 const getStatusLabel = (status) => {
   const statusMap = {
     DIRECT_MATCH: "딱 맞는 사례를 찾았어요",
-    CLOSE_MATCH: "꽤 가까운 사례를 찾았어요",
+    CLOSE_MATCH: "비슷한 고민을 다룬 사례를 찾았어요",
     ALTERNATIVE_MATCH: "참고할 만한 대체 사례예요",
     LOW_MATCH: "조금 더 구체적인 설명이 필요해요",
     NO_RESULT: "아직 맞는 사례를 찾지 못했어요",
