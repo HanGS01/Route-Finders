@@ -2250,18 +2250,24 @@ function PopularRankBoard({
             {cases.map((item, index) => (
               <button
                 key={item.case_idx || item.id}
-                style={styles.popularCompactItem}
-                onMouseEnter={e => e.currentTarget.style.border = "1px solid #E86F00"}
-                onMouseLeave={e => e.currentTarget.style.border = "1px solid #f0f0f0"}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 0", background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" }}
+                onMouseEnter={e => {
+                  e.currentTarget.querySelector(".side-bar").style.background = "#E86F00";
+                  e.currentTarget.querySelector(".rank-num").style.color = "#E86F00";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.querySelector(".side-bar").style.background = "#e0e0e0";
+                  e.currentTarget.querySelector(".rank-num").style.color = "#e0e0e0";
+                }}
                 onClick={() => onCaseClick(item)}
                 title={item.title}
               >
-                <span style={styles.popularCompactRank}>{index + 1}</span>
-                <span style={styles.popularCompactBody}>
-                  <span style={styles.popularCompactMeta}>{item.industry || "산업 미분류"}</span>
-                  <span style={styles.popularCompactTitle}>{item.title}</span>
-                  <span style={styles.popularCompactCompany}>{item.company}</span>
-                </span>
+                <div className="side-bar" style={{ width: 3, height: 36, borderRadius: 0, background: "#e0e0e0", flexShrink: 0, transition: "background 0.2s" }} />
+                <span className="rank-num" style={{ fontSize: 15, fontWeight: 500, color: "#e0e0e0", minWidth: 20, lineHeight: 1, transition: "color 0.2s" }}>{index + 1}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.4 }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: "#999", marginTop: 2 }}>{item.company}</div>
+                </div>
               </button>
             ))}
           </div>
@@ -2288,16 +2294,21 @@ function PopularRankBoard({
               <button
                 key={`${item.keyword_group || item.display_keyword}-${index}`}
                 style={styles.popularKeywordItem}
-                onMouseEnter={e => e.currentTarget.style.borderBottom = "1px solid #E86F00"}
-                onMouseLeave={e => e.currentTarget.style.borderBottom = "1px solid #f0f0f0"}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderBottom = "1px solid #E86F00";
+                  e.currentTarget.querySelector(".keyword-rank").style.color = "#E86F00";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderBottom = "1px solid #f0f0f0";
+                  e.currentTarget.querySelector(".keyword-rank").style.color = "#e0e0e0";
+                }}
                 onClick={() => onQueryClick(item.keyword_group || item.display_keyword)}
                 title="검색창에 입력하기"
               >
-                <span style={styles.popularCompactRank}>{index + 1}</span>
+                <span className="keyword-rank" style={{ ...styles.popularCompactRank, color: "#e0e0e0", transition: "color 0.2s" }}>{index + 1}</span>
                 <span style={styles.popularKeywordText}>
                   {item.keyword_group || item.display_keyword}
                 </span>
-                {/* <span style={styles.popularKeywordCount}>{item.search_count || 0}</span> */}
               </button>
             ))}
           </div>
@@ -4344,8 +4355,8 @@ const styles = {
   exportConfirmBtn: { padding: "10px 18px", fontSize: 13, color: "#fff", background: "#E86F00", border: "1px solid #E86F00", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 800 },
   topSearchLayout: { width: "min(1600px, calc(100vw - 96px))", margin: "0 auto", padding: "2.5rem 0 0", display: "grid", gridTemplateColumns: "minmax(840px, 1fr) 560px", gap: 24, alignItems: "start", boxSizing: "border-box" },
   searchMainCol: { minWidth: 0 },
-  popularSideCol: { position: "sticky", top: 96, minWidth: 0 },
-  popularRankBoard: { background: "#fff", border: "1px solid #ede8e2", borderRadius: 12, padding: "16px", boxShadow: "0 2px 10px rgba(0,0,0,0.03)", display: "grid", gridTemplateColumns: "1.05fr 1px 0.95fr", gap: 14, minHeight: 520 },
+  popularSideCol: { position: "sticky", top: 96, minWidth: 0, width: "100%" },
+  popularRankBoard: { background: "transparent", border: "none", borderRadius: 0, padding: "16px 0", boxShadow: "none", display: "grid", gridTemplateColumns: "1.2fr 1px 0.8fr", gap: 14, minHeight: 520, alignItems: "start", width: "100%" },
   popularRankColumn: { minWidth: 0, display: "flex", flexDirection: "column", height: "100%" },
   popularRankDivider: { width: 1, background: "#f0f0f0", alignSelf: "stretch" },
   popularColumnHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 },
