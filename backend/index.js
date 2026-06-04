@@ -18,7 +18,8 @@ require("./routes/auth");
 app.use(passport.initialize());
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  // origin : process.env.FRONTEND_URL || "http://localhost:5173" 원래 이거였음
+  origin: true,
   credentials: true,
 }));
 
