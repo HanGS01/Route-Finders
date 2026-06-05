@@ -2255,11 +2255,11 @@ function PopularRankBoard({
         )}
 
         {!caseLoading && !caseError && cases.length > 0 && (
-          <div style={styles.popularCompactList}>
+          <div style={styles.popularCaseCompactList}>
             {cases.map((item, index) => (
               <button
                 key={item.case_idx || item.id}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 0", background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" }}
+                style={{ width: "100%", flex: 1, minHeight: 0, display: "flex", alignItems: "center", gap: 10, padding: "12px 0", background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" }}
                 onMouseEnter={e => {
                   e.currentTarget.querySelector(".side-bar").style.background = "#E86F00";
                   e.currentTarget.querySelector(".rank-num").style.color = "#E86F00";
@@ -2271,7 +2271,7 @@ function PopularRankBoard({
                 onClick={() => onCaseClick(item)}
                 title={item.title}
               >
-                <div className="side-bar" style={{ width: 3, height: 36, borderRadius: 0, background: "#e0e0e0", flexShrink: 0, transition: "background 0.2s" }} />
+                <div className="side-bar" style={{ width: 3, height: 58, borderRadius: 0, background: "#e0e0e0", flexShrink: 0, transition: "background 0.2s" }} />
                 <span className="rank-num" style={{ fontSize: 15, fontWeight: 500, color: "#e0e0e0", minWidth: 20, lineHeight: 1, transition: "color 0.2s" }}>{index + 1}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.4 }}>{item.title}</div>
@@ -4370,6 +4370,7 @@ const styles = {
   popularRankDivider: { width: 1, background: "#f0f0f0", alignSelf: "stretch" },
   popularColumnHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 },
   popularCompactList: { display: "flex", flexDirection: "column", gap: 8, flex: 1, justifyContent: "space-between" },
+  popularCaseCompactList: { display: "flex", flexDirection: "column", gap: 0, flex: 1, justifyContent: "stretch" },
   popularCompactItem: { width: "100%", display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 8px", background: "#fff", border: "1px solid #f0f0f0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" },
   popularCompactRank: { fontSize: 14, fontWeight: 800, color: "#E86F00", flexShrink: 0, minWidth: 14, lineHeight: 1.4 },
   popularCompactBody: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 },
