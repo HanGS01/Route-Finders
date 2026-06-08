@@ -1132,6 +1132,10 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
         ].filter(Boolean),
 
         query_idx: savedQueryIdx,
+        query_text: rawQueryText,
+        raw_query_text: rawQueryText,
+        search_query: searchQuery,
+        searched_at: new Date().toISOString(),
         query_meta: queryMeta,
         result_status: resultStatus,
         cases: finalMappedCases,
@@ -1400,6 +1404,31 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     );
   };
 
+  const getCurrentHistoryContext = (viewSource = "unknown") => {
+    const source = String(viewSource || "unknown");
+    const isSearchBasedSource = ["recommend", "map"].includes(source);
+
+    if (!isSearchBasedSource || !result) {
+      return {
+        view_source: source,
+        query_text: "",
+        search_query: "",
+        query_idx: null,
+        searched_at: null,
+        search_mode: null,
+      };
+    }
+
+    return {
+      view_source: source,
+      query_text: result.raw_query_text || result.query_text || result.search_query || "",
+      search_query: result.search_query || result.query_text || result.raw_query_text || "",
+      query_idx: result.query_idx || null,
+      searched_at: result.searched_at || null,
+      search_mode: result.search_mode || null,
+    };
+  };
+
   const saveCaseViewLog = async (caseData, viewSource = "unknown") => {
     const caseIdx = caseData?.case_idx || caseData?.id;
 
@@ -1434,9 +1463,16 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
     const enrichedCase = enrichCaseForSelection(caseData);
     if (!enrichedCase) return;
 
+    const historyContext = getCurrentHistoryContext(viewSource);
+
     setSelectedCase({
       ...enrichedCase,
       _view_source: viewSource,
+      _query_text: historyContext.query_text,
+      _search_query: historyContext.search_query,
+      _query_idx: historyContext.query_idx,
+      _searched_at: historyContext.searched_at,
+      _search_mode: historyContext.search_mode,
     });
     saveCaseViewLog(enrichedCase, viewSource);
   };
@@ -1856,7 +1892,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
             cases={popularCases}
             caseLoading={popularLoading}
             caseError={popularError}
-            onCaseClick={(caseData) => handleCaseSelect(caseData, "archive")}
+            onCaseClick={(caseData) => handleCaseSelect(caseData, "popular")}
             queries={popularQueries}
             queryLoading={popularQueryLoading}
             queryError={popularQueryError}
@@ -2050,7 +2086,7 @@ export default function SearchPage({ onSearch, searchedCases = [] }) {
           onClose={() => setSelectedCase(null)}
           hasRecommendationResult={!!result?.cases?.length}
           isTopRecommendedCase={recommendedCaseIds.includes(String(selectedCase.case_idx ?? selectedCase.id))}
-          isArchiveCase={selectedCase?._view_source === "archive"}
+          isArchiveCase={["archive", "popular", "bookmark", "unknown"].includes(selectedCase?._view_source)}
           onOpenPersonalStrategy={() => {
             setPersonalStrategyError(null);
             setShowPersonalStrategyModal(true);
@@ -2842,12 +2878,46 @@ function CasePanel({
 
   useEffect(() => {
     if (!caseData) return;
+
     const now = new Date();
     const viewedAt = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const newItem = { ...caseData, viewedAt };
+    const viewSource = caseData._view_source || caseData.view_source || "unknown";
+    const queryText = caseData._query_text || caseData.query_text || "";
+    const searchQuery = caseData._search_query || caseData.search_query || "";
+    const queryIdx = caseData._query_idx || caseData.query_idx || null;
+    const searchedAt = caseData._searched_at || caseData.searched_at || null;
+    const searchMode = caseData._search_mode || caseData.search_mode || null;
+
+    const newItem = {
+      ...caseData,
+      viewedAt,
+      viewed_at: now.toISOString(),
+      view_source: viewSource,
+      query_text: queryText,
+      search_query: searchQuery,
+      query_idx: queryIdx,
+      searched_at: searchedAt,
+      search_mode: searchMode,
+      reco_reason: caseData.reco_reason || "",
+      personal_strategy: caseData.personal_strategy || "",
+      personal_strategy_status: caseData.personal_strategy_status || null,
+    };
+
     const prev = JSON.parse(localStorage.getItem("caseHistory") || "[]");
-    const filtered = prev.filter((h) => h.title !== caseData.title);
-    localStorage.setItem("caseHistory", JSON.stringify([newItem, ...filtered].slice(0, 30)));
+    const caseKey = String(caseData.case_idx ?? caseData.id ?? caseData.title ?? "");
+    const currentQueryKey = queryIdx ? `query:${queryIdx}` : queryText ? `text:${queryText}` : "no-query";
+
+    const filtered = prev.filter((h) => {
+      const prevCaseKey = String(h.case_idx ?? h.id ?? h.title ?? "");
+      const prevViewSource = h.view_source || h._view_source || "unknown";
+      const prevQueryText = h.query_text || h._query_text || "";
+      const prevQueryIdx = h.query_idx || h._query_idx || null;
+      const prevQueryKey = prevQueryIdx ? `query:${prevQueryIdx}` : prevQueryText ? `text:${prevQueryText}` : "no-query";
+
+      return !(prevCaseKey === caseKey && prevViewSource === viewSource && prevQueryKey === currentQueryKey);
+    });
+
+    localStorage.setItem("caseHistory", JSON.stringify([newItem, ...filtered].slice(0, 50)));
   }, [caseData]);
 
   const toggleBookmark = (e) => {

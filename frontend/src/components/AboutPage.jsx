@@ -1,4 +1,4 @@
-import { Search, Map, Bookmark, Files } from "lucide-react";
+import { Search, Target, Map, PanelRightOpen, GitCompare, Bookmark, TrendingUp, History } from "lucide-react";
 import { useState } from "react";
 
 const ORANGE = "#E86F00";
@@ -91,6 +91,7 @@ const styles = {
     border: "0.5px solid #ede8e2",
     borderRadius: 12,
     overflow: "hidden",
+    background: "#fff",
   },
   showcaseInput: {
     background: "#f5f5f5",
@@ -108,6 +109,18 @@ const styles = {
     fontSize: 15,
     color: "#6b6258",
     lineHeight: 1.55,
+  },
+  showcaseApplyBox: {
+    display: "grid",
+    gridTemplateColumns: "72px 1fr",
+    gap: "6px 10px",
+    fontSize: 14,
+    color: "#6b6258",
+    lineHeight: 1.55,
+  },
+  showcaseApplyLabel: {
+    color: "#a09488",
+    fontWeight: 600,
   },
   showcaseResult: { padding: "12px 16px" },
   showcaseResultBadge: {
@@ -182,7 +195,7 @@ const styles = {
     borderBottom: "0.5px solid #ede8e2",
   },
   faqItemLast: { padding: "16px 0" },
-  
+
   faqQ: {
     fontSize: 16,
     fontWeight: 600,
@@ -233,7 +246,7 @@ const ROW_GAP = 80; // 행 간격
 const ARROW_GAP = 36; // ← 이걸로 길이 컨트롤
 const LABEL_H = 60; // 라벨 영역 높이
 
-// Row1: 3개, Row2: 2개 (오른쪽 정렬)
+// Row1: 3개, Row2: 3개
 const R1_COUNT = 3;
 const R2_COUNT = 3;
 const R1_W = R1_COUNT * SW + (R1_COUNT - 1) * GAP;
@@ -265,7 +278,6 @@ function MiniHeader({ x, y }) {
 
 function ScreenContent({ type, x, y }) {
   const TOP = y + 14; // 내부 시작 기준선 통일
-  const bar = { fill: "#ede8e2" };
 
   const line = (lx, ly, w, orange = false) => (
     <rect
@@ -279,37 +291,43 @@ function ScreenContent({ type, x, y }) {
     />
   );
 
-  // 공통 상단 dots
-  const dots = (
-    <>
-    </>
+  const smallBadge = (lx, ly, w, orange = false) => (
+    <rect
+      x={lx}
+      y={ly}
+      width={w}
+      height={12}
+      rx={6}
+      fill={orange ? ORANGE_LIGHT : "#f4f1ee"}
+      stroke={orange ? "#fed7aa" : "#ede8e2"}
+      strokeWidth={0.6}
+    />
   );
 
   if (type === "search") return (
     <g>
+      {/* 검색 모드 탭 */}
+      {smallBadge(x + 8, TOP + 8, 54, true)}
+      {smallBadge(x + 68, TOP + 8, 68)}
+
       {/* 제목 두 줄 */}
-      {line(x + 8, TOP + 8, SW * 0.8)}
-      {line(x + 8, TOP + 20, SW * 0.5, true)}
+      {line(x + 8, TOP + 30, SW * 0.75)}
+      {line(x + 8, TOP + 42, SW * 0.52, true)}
 
-      {/* 문제 유형 선택 라벨 */}
-      {line(x + 8, TOP + 36, SW * 0.3)}
-
-      {/* 칩 4개 */}
+      {/* 필터 칩 */}
       {[0,1,2,3].map(i => (
-        <rect key={i} x={x + 8 + i * 34} y={TOP + 48} width={28} height={12} rx={6}
+        <rect key={i} x={x + 8 + i * 34} y={TOP + 60} width={28} height={12} rx={6}
           fill="none" stroke="#ede8e2" strokeWidth={0.8} />
       ))}
 
       {/* textarea */}
-      <rect x={x + 8} y={TOP + 68} width={SW - 16} height={36} rx={3}
+      <rect x={x + 8} y={TOP + 80} width={SW - 16} height={34} rx={3}
         fill="none" stroke="#ede8e2" strokeWidth={0.8} />
 
-      {/* 초기화 버튼 */}
-      <rect x={x + SW - 80} y={TOP + 112} width={30} height={12} rx={2}
+      {/* 버튼 */}
+      <rect x={x + SW - 80} y={TOP + 122} width={30} height={12} rx={2}
         fill="none" stroke="#ede8e2" strokeWidth={0.8} />
-
-      {/* 케이스 탐색 버튼 */}
-      <rect x={x + SW - 46} y={TOP + 112} width={38} height={12} rx={2}
+      <rect x={x + SW - 46} y={TOP + 122} width={38} height={12} rx={2}
         fill={ORANGE} opacity={0.85} />
     </g>
   );
@@ -317,60 +335,103 @@ function ScreenContent({ type, x, y }) {
   if (type === "result")
     return (
       <g>
-        {dots}
-        {line(x + 8, TOP + 20, SW * 0.72, true)}
-        {line(x + 8, TOP + 34, SW * 0.55)}
-        {line(x + 8, TOP + 48, SW * 0.72)}
-        {line(x + 8, TOP + 62, SW * 0.55)}
-        {line(x + 8, TOP + 76, SW * 0.62)}
+        {/* 추천 결과 리스트 */}
+        {line(x + 8, TOP + 12, SW * 0.42, true)}
+        {[0,1,2].map((i) => (
+          <g key={i}>
+            <rect
+              x={x + 8}
+              y={TOP + 30 + i * 32}
+              width={SW - 16}
+              height={24}
+              rx={5}
+              fill={i === 0 ? "#fff7ed" : "#f8f6f4"}
+              stroke={i === 0 ? "#fed7aa" : "#ede8e2"}
+              strokeWidth={0.6}
+            />
+            <circle cx={x + 18} cy={TOP + 42 + i * 32} r={3.2} fill={i === 0 ? ORANGE : "#d7d1cb"} />
+            {line(x + 28, TOP + 38 + i * 32, SW * 0.55, i === 0)}
+            {line(x + 28, TOP + 48 + i * 32, SW * 0.38)}
+          </g>
+        ))}
       </g>
     );
 
   if (type === "map")
     return (
       <g>
-        {dots}
+        {/* 케이스맵 링/후보 구조 */}
         <ellipse
           cx={x + SW / 2}
           cy={TOP + 72}
-          rx={42}
-          ry={30}
-          fill="#ede8e2"
+          rx={52}
+          ry={34}
+          fill="#f1ede9"
+        />
+        <ellipse
+          cx={x + SW / 2}
+          cy={TOP + 72}
+          rx={34}
+          ry={22}
+          fill="none"
+          stroke="#e5ddd5"
+          strokeWidth={1}
         />
         <circle
-          cx={x + SW / 2 - 16}
+          cx={x + SW / 2 - 18}
           cy={TOP + 66}
           r={7}
           fill={ORANGE}
-          opacity={0.85}
+          opacity={0.9}
         />
         <circle
-          cx={x + SW / 2 + 14}
+          cx={x + SW / 2 + 18}
           cy={TOP + 84}
           r={5}
           fill={ORANGE}
           opacity={0.55}
         />
         <circle
-          cx={x + SW / 2 + 10}
+          cx={x + SW / 2 + 12}
           cy={TOP + 52}
           r={4}
           fill="#a09488"
           opacity={0.45}
         />
+        <circle
+          cx={x + SW / 2 - 34}
+          cy={TOP + 88}
+          r={3.8}
+          fill="#a09488"
+          opacity={0.35}
+        />
+        <rect x={x + 14} y={TOP + 116} width={54} height={12} rx={6} fill={ORANGE_LIGHT} />
+        {line(x + 74, TOP + 119, SW * 0.42)}
       </g>
     );
 
   if (type === "detail")
     return (
       <g>
-        {dots}
-        {line(x + 8, TOP + 20, SW * 0.72)}
-        {line(x + 8, TOP + 34, SW * 0.55)}
+        {/* 우측 상세 패널 */}
+        {line(x + 8, TOP + 12, SW * 0.6)}
+        {line(x + 8, TOP + 26, SW * 0.38)}
 
         <rect
           x={x + 8}
-          y={TOP + 58}
+          y={TOP + 48}
+          width={SW - 16}
+          height={28}
+          rx={4}
+          fill="#fff7ed"
+          stroke="#fed7aa"
+          strokeWidth={0.8}
+        />
+        {line(x + 18, TOP + 58, SW * 0.54, true)}
+
+        <rect
+          x={x + 8}
+          y={TOP + 86}
           width={SW - 16}
           height={30}
           rx={4}
@@ -379,57 +440,72 @@ function ScreenContent({ type, x, y }) {
           strokeWidth={1}
           opacity={0.7}
         />
+        {line(x + 18, TOP + 98, SW * 0.62, true)}
 
-        {line(x + 16, TOP + 69, SW * 0.55, true)}
+        <rect x={x + SW - 78} y={TOP + 128} width={32} height={12} rx={3} fill="#fff" stroke="#ede8e2" strokeWidth={0.8} />
+        <rect x={x + SW - 42} y={TOP + 128} width={34} height={12} rx={3} fill={ORANGE_LIGHT} />
       </g>
     );
 
   if (type === "compare")
     return (
       <g>
-        {dots}
-
-        <rect
-          x={x + 8}
-          y={TOP + 18}
-          width={(SW - 28) / 3}
-          height={SH - 40}
-          rx={3}
-          fill="#ede8e2"
-        />
-        <rect
-          x={x + 8 + (SW - 28) / 3 + 6}
-          y={TOP + 18}
-          width={(SW - 28) / 3}
-          height={SH - 40}
-          rx={3}
-          fill="#ede8e2"
-        />
-        <rect
-          x={x + 8 + 2 * ((SW - 28) / 3 + 6)}
-          y={TOP + 18}
-          width={(SW - 28) / 3}
-          height={SH - 40}
-          rx={3}
-          fill="#ede8e2"
-        />
+        {/* 비교/저장 카드 */}
+        {[0,1,2].map((i) => (
+          <g key={i}>
+            <rect
+              x={x + 8 + i * ((SW - 28) / 3 + 6)}
+              y={TOP + 20}
+              width={(SW - 28) / 3}
+              height={84}
+              rx={4}
+              fill="#f1ede9"
+            />
+            <rect
+              x={x + 14 + i * ((SW - 28) / 3 + 6)}
+              y={TOP + 30}
+              width={(SW - 52) / 3}
+              height={6}
+              rx={2}
+              fill={i === 0 ? ORANGE : "#d7d1cb"}
+              opacity={i === 0 ? 0.65 : 1}
+            />
+            <rect
+              x={x + 14 + i * ((SW - 28) / 3 + 6)}
+              y={TOP + 44}
+              width={(SW - 58) / 3}
+              height={6}
+              rx={2}
+              fill="#d7d1cb"
+            />
+          </g>
+        ))}
+        <rect x={x + 72} y={TOP + 120} width={56} height={14} rx={3} fill={ORANGE} opacity={0.85} />
       </g>
     );
 
-  if (type === "table") return (
+  if (type === "history") return (
     <g>
-      {/* 헤더 행 */}
-      <rect x={x + 8} y={TOP + 8} width={SW - 16} height={10} rx={2} fill="#ede8e2" />
-      {/* 3열 데이터 행 5개 */}
-      {[0,1,2,3,4].map(row => (
-        <g key={row}>
-          {[0,1,2].map(col => (
-            <rect key={col}
-              x={x + 8 + col * ((SW - 22) / 3 + 3)}
-              y={TOP + 24 + row * 16}
-              width={(SW - 22) / 3}
-              height={10} rx={2} fill="#ede8e2" opacity={0.6} />
-          ))}
+      {/* 최근 본 케이스 히스토리 */}
+      {smallBadge(x + 8, TOP + 10, 52, true)}
+      {smallBadge(x + 66, TOP + 10, 52)}
+
+      <rect
+        x={x + 8}
+        y={TOP + 34}
+        width={SW - 16}
+        height={20}
+        rx={4}
+        fill="#fff7ed"
+        stroke="#fed7aa"
+        strokeWidth={0.7}
+      />
+      {line(x + 18, TOP + 41, SW * 0.52, true)}
+
+      {[0,1,2,3].map((i) => (
+        <g key={i}>
+          <circle cx={x + 18} cy={TOP + 72 + i * 16} r={3} fill={i < 2 ? ORANGE : "#cfc7bf"} opacity={i < 2 ? 0.7 : 0.55} />
+          {line(x + 28, TOP + 69 + i * 16, SW * (i === 0 ? 0.58 : 0.44))}
         </g>
       ))}
     </g>
@@ -440,12 +516,12 @@ function ScreenContent({ type, x, y }) {
 
 function FlowDiagram() {
   const steps = [
-    { num: 1, title: "검색 화면",   action: "고민 입력 후 클릭",         type: "search"  },
-    { num: 2, title: "추천 케이스", action: "케이스 항목 클릭",           type: "result"  },
-    { num: 3, title: "클러스터 맵", action: "케이스 선택",               type: "map"     },
-    { num: 4, title: "케이스 상세", action: "비교에 추가 클릭 (최대 3개)", type: "detail"  },
-    { num: 5, title: "케이스 비교", action: "비교하기 클릭",             type: "compare" },
-    { num: 6, title: "케이스 비교표", action: "",                        type: "table"   },
+    { num: 1, title: "고민 입력", action: "상황을 문장으로 적어요", type: "search" },
+    { num: 2, title: "추천 결과", action: "추천 이유를 확인해요", type: "result" },
+    { num: 3, title: "케이스맵 탐색", action: "관련 후보까지 둘러봐요", type: "map" },
+    { num: 4, title: "상세 패널", action: "문제·해결 전략을 살펴봐요", type: "detail" },
+    { num: 5, title: "비교·저장", action: "필요한 케이스를 모아요", type: "compare" },
+    { num: 6, title: "히스토리 복기", action: "봤던 흐름을 다시 확인해요", type: "history" },
   ];
 
   const row1 = steps.slice(0, 3);
@@ -494,9 +570,9 @@ function FlowDiagram() {
               {step.action && (
                 <g>
                   <rect
-                    x={x + SW / 2 - 52}
+                    x={x + SW / 2 - 60}
                     y={SH + 8}
-                    width={104}
+                    width={120}
                     height={18}
                     rx={4}
                     fill={ORANGE_LIGHT}
@@ -544,12 +620,12 @@ function FlowDiagram() {
           );
         })}
 
-        {/* row2 시작 화살표 - row1과 동일 길이 */}
         {/* 행 연결 L자 화살표 (03 → 04) */}
         <path
           d={`M ${r1x(2) + SW / 2} ${SH + LABEL_H} V ${ROW2_Y - 20} H ${r2x(0) + SW / 2} V ${ROW2_Y - 4}`}
           fill="none" stroke="#f5c4a8" strokeWidth={1.5} markerEnd="url(#arr)"
         />
+
         {/* Row 2 */}
         {row2.map((step, i) => {
           const x = r2x(i);
@@ -566,9 +642,9 @@ function FlowDiagram() {
               {step.action && (
                 <g>
                   <rect
-                    x={x + SW / 2 - 60}
+                    x={x + SW / 2 - 64}
                     y={y + SH + 8}
-                    width={120}
+                    width={128}
                     height={18}
                     rx={4}
                     fill={ORANGE_LIGHT}
@@ -621,61 +697,123 @@ function FlowDiagram() {
 }
 
 const FEATURES = [
-  { icon: <Search size={18} />, title: "자연어 검색", desc: "지금 겪고 있는 상황을 그대로 적어주세요. 키워드 없이도 딱 맞는 케이스를 찾아드려요." },
-  { icon: <Map size={18} />, title: "클러스터 맵", desc: "비슷한 케이스끼리 묶어 한눈에 보여드려요. 생각지 못한 케이스를 발견할 수도 있어요." },
-  { icon: <Files size={18} />, title: "케이스 비교", desc: "마음에 드는 케이스를 최대 3개 골라 나란히 비교해보세요. 공통점과 차이점이 한눈에 보여요." },
-  { icon: <Bookmark size={18} />, title: "맞춤 추천", desc: "전략·마케팅·신사업 등 내 고민과 가장 가까운 케이스를 추천합니다." },
+  {
+    icon: <Search size={18} />,
+    title: "관련 케이스 찾기",
+    desc: "지금 겪고 있는 고민을 문장으로 적으면, 비슷한 문제를 다룬 DBR 케이스를 추천해드려요.",
+  },
+  {
+    icon: <Target size={18} />,
+    title: "내 상황에 적용하기",
+    desc: "직무, 문제 상황, 제약 조건을 함께 입력하면 추천 케이스를 내 상황에 맞는 실행 방향으로 정리해드려요.",
+  },
+  {
+    icon: <Map size={18} />,
+    title: "케이스맵 탐색",
+    desc: "추천 TOP5뿐 아니라 관련 후보 케이스까지 지도처럼 둘러볼 수 있어요.",
+  },
+  {
+    icon: <PanelRightOpen size={18} />,
+    title: "우측 상세 패널",
+    desc: "케이스를 누르면 문제 상황, 해결 전략, 추천 이유, 맞춤 전략을 한 화면에서 확인할 수 있어요.",
+  },
+  {
+    icon: <GitCompare size={18} />,
+    title: "케이스 비교",
+    desc: "마음에 드는 케이스를 최대 3개까지 골라 공통점과 차이점을 나란히 비교할 수 있어요.",
+  },
+  {
+    icon: <Bookmark size={18} />,
+    title: "북마크 저장",
+    desc: "나중에 다시 보고 싶은 케이스는 북마크로 저장해두고 따로 모아볼 수 있어요.",
+  },
+  {
+    icon: <TrendingUp size={18} />,
+    title: "인기 케이스·검색어",
+    desc: "다른 사용자가 많이 본 케이스와 자주 찾는 검색어를 참고해서 탐색을 시작할 수 있어요.",
+  },
+  {
+    icon: <History size={18} />,
+    title: "최근 본 케이스 히스토리",
+    desc: "검색어별로 봤던 케이스를 다시 확인하고, 당시 흐름과 상세 내용을 복기할 수 있어요.",
+  },
 ];
 
 const SHOWCASES = [
-  { input: "브랜드 인지도는 높은데 구매 전환이 안 돼요", cases: ["동원 빙글레 브랜드 전략", "롯데 슬롯 성공 전략"] },
-  { input: "신사업 진입 전략, 어디서부터 시작해야 할지 모르겠어요", cases: ["카카오 IP 확장 전략", "샐러드랄랄라 AI 플랫폼"] },
+  {
+    type: "case",
+    badge: "관련 케이스 찾기",
+    input: "브랜드 인지도는 높은데 구매 전환이 낮아요.",
+    cases: ["구매 전환 개선 사례", "브랜드 리포지셔닝 사례", "고객 경험 개선 사례"],
+  },
+  {
+    type: "apply",
+    badge: "내 상황에 적용하기",
+    role: "마케팅 실무자",
+    situation: "신규 서비스 유입은 늘었지만 실제 구매 전환이 낮아요.",
+    constraint: "큰 예산 없이 고객 반응을 빠르게 확인하고 싶어요.",
+    cases: ["실행 우선순위 정리", "고객 반응 검증 방향", "적용 시 주의점"],
+  },
 ];
 
 const TIPS_GOOD = [
-  "상황과 맥락을 구체적으로 설명해주세요",
-  "숫자나 지표를 함께 언급하면 더 정확해요",
-  "문장으로 자유롭게 적어주세요",
+  "현재 겪는 문제 상황을 문장으로 적어주세요",
+  "산업, 고객, 목표, 제약 조건을 함께 적으면 더 좋아요",
+  "내 상황에 적용하기는 역할과 원하는 방향까지 적어주세요",
 ];
 
 const TIPS_BAD = [
-  "단어 하나만 입력하면 결과가 부정확해요",
-  "특정 기업명만 검색하면 매칭이 어려워요",
-  "너무 광범위한 주제는 좁혀주세요",
+  "단어 하나만 입력하면 추천 맥락이 부족할 수 있어요",
+  "기업명만 입력하면 원하는 문제 상황을 파악하기 어려워요",
+  "너무 넓은 주제는 구체적인 고민으로 좁혀주세요",
 ];
 
 const FAQS = [
-  { q: "어떤 케이스가 포함되어 있나요?", a: "DBR(동아비즈니스리뷰) 2021–2026년 케이스 스터디와 Voice from the Field 아티클이 포함되어 있습니다." },
-  { q: "검색 결과가 마음에 안 들면 어떻게 하나요?", a: "입력 내용을 더 구체적으로 바꿔서 다시 시도해보세요. 상황과 맥락을 추가할수록 정확도가 높아집니다." },
-  { q: "클러스터 맵은 어떻게 활용하나요?", a: "검색 결과를 시각화한 맵에서 케이스 간 관계를 탐색할 수 있습니다. 유사한 케이스끼리 묶여 표시됩니다." },
+  {
+    q: "어떤 케이스가 포함되어 있나요?",
+    a: "DBR(동아비즈니스리뷰) 2021–2026년 케이스 스터디와 관련 아티클을 바탕으로 탐색할 수 있어요.",
+  },
+  {
+    q: "관련 케이스 찾기와 내 상황에 적용하기는 뭐가 다른가요?",
+    a: "관련 케이스 찾기는 비슷한 DBR 사례를 빠르게 찾는 기능이고, 내 상황에 적용하기는 직무와 제약 조건까지 반영해 실행 방향을 함께 정리해주는 기능이에요.",
+  },
+  {
+    q: "케이스맵은 어떻게 활용하면 좋나요?",
+    a: "추천 TOP5뿐 아니라 관련 후보 케이스까지 함께 볼 수 있어요. 점을 눌러가며 비슷한 문제와 해결 전략을 넓게 탐색해보면 좋아요.",
+  },
+  {
+    q: "최근 본 케이스는 어디에서 다시 볼 수 있나요?",
+    a: "히스토리에서 검색어별로 다시 확인할 수 있어요. 당시 봤던 케이스의 문제 상황, 해결 전략, 추천 이유, 맞춤 전략도 함께 복기할 수 있어요.",
+  },
 ];
 
 export default function AboutPage({ onStart }) {
   const [btnHover, setBtnHover] = useState(false);
+
   return (
     <div style={styles.page}>
 
       {/* 서비스 소개 */}
       <div style={styles.section}>
         <div style={styles.label}>서비스 소개</div>
-        <div style={{ ...styles.title, fontSize:34 }}>DBR Case Atlas란?</div>
+        <div style={{ ...styles.title, fontSize: 34 }}>DBR Case Atlas란?</div>
         <p style={styles.desc}>
-          바쁜 실무자를 위한 AI 기반 케이스 탐색 서비스입니다. 키워드 대신 자연어로 비즈니스 고민을 입력하면,<br/>
-          DBR 아카이브(2021–2026)에서 가장 유사한 케이스를 찾아드립니다.
+          바쁜 실무자를 위한 AI 기반 케이스 탐색 서비스예요. 지금 겪고 있는 비즈니스 고민을 자연어로 입력하면,<br/>
+          DBR 아카이브 안에서 비슷한 문제와 해결 방식을 다룬 케이스와 적용 방향을 찾아드려요.
         </p>
       </div>
 
       {/* 사용 방법 */}
       <div style={styles.section}>
         <div style={styles.label}>사용 방법</div>
-        <div style={styles.title}>이렇게 사용하세요</div>
+        <div style={styles.title}>이렇게 사용해보세요</div>
         <FlowDiagram />
       </div>
 
       {/* 핵심 기능 */}
       <div style={styles.section}>
         <div style={styles.label}>핵심 기능</div>
-        <div style={styles.title}>이런 기능을 제공합니다</div>
+        <div style={styles.title}>이런 기능을 제공해요</div>
         <div style={styles.featGrid}>
           {FEATURES.map((f, i) => (
             <div key={i} style={styles.featCard}>
@@ -697,12 +835,31 @@ export default function AboutPage({ onStart }) {
           {SHOWCASES.map((s, i) => (
             <div key={i} style={styles.showcaseCard}>
               <div style={styles.showcaseInput}>
-                <div style={styles.showcaseInputBadge}>입력 예시</div>
-                <div style={styles.showcaseInputText}>{s.input}</div>
+                <div style={styles.showcaseInputBadge}>{s.badge}</div>
+
+                {s.type === "apply" ? (
+                  <div style={styles.showcaseApplyBox}>
+                    <span style={styles.showcaseApplyLabel}>역할</span>
+                    <span>{s.role}</span>
+                    <span style={styles.showcaseApplyLabel}>상황</span>
+                    <span>{s.situation}</span>
+                    <span style={styles.showcaseApplyLabel}>방향</span>
+                    <span>{s.constraint}</span>
+                  </div>
+                ) : (
+                  <div style={styles.showcaseInputText}>{s.input}</div>
+                )}
               </div>
+
               <div style={styles.showcaseResult}>
-                <div style={styles.showcaseResultBadge}>추천 케이스</div>
-                <div>{s.cases.map((c, j) => <span key={j} style={styles.caseChip}>{c}</span>)}</div>
+                <div style={styles.showcaseResultBadge}>
+                  {s.type === "apply" ? "맞춤 전략 방향" : "추천 방향"}
+                </div>
+                <div>
+                  {s.cases.map((c, j) => (
+                    <span key={j} style={styles.caseChip}>{c}</span>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
@@ -743,7 +900,7 @@ export default function AboutPage({ onStart }) {
       <div style={styles.lastSection}>
         <div style={styles.ctaBox}>
           <div>
-            <div style={styles.ctaTitle}>지금 바로 케이스를 탐색해보세요</div>
+            <div style={styles.ctaTitle}>지금 고민과 비슷한 DBR 케이스를 찾아볼까요?</div>
           </div>
           <button
             style={{ ...styles.btn, background: btnHover ? "#C45E00" : "#E86F00" }}
